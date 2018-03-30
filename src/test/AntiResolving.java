@@ -48,15 +48,15 @@ public class AntiResolving {
 	public static final String NEW_LINE = System.getProperty("line.separator");
 
 	public static void main(String[] args) throws IOException {
-		/*System.setOut(new PrintStream("output.txt"));		
+		System.setOut(new PrintStream("output.txt"));		
 		for (int m = 1; m <= 3; m++){
 			for (int k = 1; k <= 8; k++){
 				mainForOneBasis(new String[]{k+"", m+""});
 				//mainForOne(new String[]{k+"", m+""});
 			}
-		}*/
+		}
 		//mainForOne(new String[]{"3", "3"});
-		lookingForK(args);
+		//lookingForK(args);
 		//mainForPrivacyMeasure(args);
 		//mainForOneBasis(args);
 		//mainForOne(args);
