@@ -18,6 +18,12 @@ import util.Print;
 public class TreeDimension {
 
 	public static void main(String[] args) throws FileNotFoundException {
+		
+		for (int n = 1; n <= 56; n++) {
+			System.out.println("Iterating from 2 to the power of "+(n-1)+" to 2 to the power of "+n);
+			for (int i = (int)Math.pow(2, n-1); i < Math.pow(2, n); i++) {
+			}
+		}
 		System.setOut(new PrintStream(new File("out.txt")));
 		int depth = 8;
 		System.out.println("Starting");
