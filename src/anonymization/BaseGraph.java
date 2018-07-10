@@ -2,10 +2,6 @@ package anonymization;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.List;
-
-import sun.reflect.ReflectionFactory.GetReflectionFactoryAction;
 import util.GraphUtil;
 
 //import org.apache.log4j.Logger;
