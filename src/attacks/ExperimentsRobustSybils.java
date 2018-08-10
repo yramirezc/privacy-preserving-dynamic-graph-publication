@@ -53,15 +53,15 @@ public class ExperimentsRobustSybils {
 		}   // else the defaults defined above are taken
 		
 		for (double density : densities) {
-			for (int attackerSize : attackerCounts) {
+			for (int attackerCount : attackerCounts) {
 				for (int editDist : editDistances) {
 					int edgenum = getEdgeNum(vernum, density);				
-					String fileNameOutOriginalWalkBased = "Exp1-Rob-Syb-Original-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerSize + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNameOutDistAnonymizationWalkBased = "Exp1-Rob-Syb-Dist-Anonymization-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerSize + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNameOutDistTransformationWalkBased = "Exp1-Rob-Syb-Dist-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerSize + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNameOutAdjTransformationWalkBased = "Exp1-Rob-Syb-Adj-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerSize + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNamesOutsRandomPerturbations = "Exp1-Rob-Syb-Random-Perturbation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerSize + "-AttackType-" + attackType + "-EditDist-" + editDist;					
-					oneRunExperimentRobustSybils(vernum, edgenum, attackType, attackerSize, editDist, fileNameOutOriginalWalkBased, fileNameOutDistAnonymizationWalkBased, fileNameOutDistTransformationWalkBased, fileNameOutAdjTransformationWalkBased, fileNamesOutsRandomPerturbations);
+					String fileNameOutOriginalWalkBased = "Exp1-Rob-Syb-Original-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNameOutDistAnonymizationWalkBased = "Exp1-Rob-Syb-Dist-Anonymization-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNameOutDistTransformationWalkBased = "Exp1-Rob-Syb-Dist-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNameOutAdjTransformationWalkBased = "Exp1-Rob-Syb-Adj-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNamesOutsRandomPerturbations = "Exp1-Rob-Syb-Random-Perturbation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;					
+					oneRunExperimentRobustSybils(vernum, edgenum, attackType, attackerCount, editDist, fileNameOutOriginalWalkBased, fileNameOutDistAnonymizationWalkBased, fileNameOutDistTransformationWalkBased, fileNameOutAdjTransformationWalkBased, fileNamesOutsRandomPerturbations);
 				}
 			}
 		}

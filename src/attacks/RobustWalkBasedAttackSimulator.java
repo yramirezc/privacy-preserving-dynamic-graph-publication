@@ -51,41 +51,47 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		 */
 		
 		SecureRandom random = new SecureRandom();
-		
-		int finalAttackerCount = attackerCount;
-		int chunkCount = (attackerCount % codec.getMessageLength() == 0)? attackerCount / codec.getMessageLength() : 1 + attackerCount / codec.getMessageLength();
-		finalAttackerCount = chunkCount * codec.getCodewordLength();  
+		int nonRedundantAttackerCount = codec.maxPossibleMessageLength(attackerCount);
+		/**
+		 * In an initial implementation, the number of sybils for the non-error-correcting fingerprint was set and then the larger number of sybils 
+		 * for error-correcting fingerprints was determined. Now we do the opposite, an upper bound on the number of sybils is set, 
+		 * and the code determines the maximum number of non-redundant fingerprints that can be encoded into this bound   
+		 * */
+		//int finalAttackerCount = attackerCount;
+		//int chunkCount = (attackerCount % codec.getMessageLength() == 0)? attackerCount / codec.getMessageLength() : 1 + attackerCount / codec.getMessageLength();
+		//finalAttackerCount = chunkCount * codec.getCodewordLength();  
 		
 		if (victimCount == 0)
 			victimCount = 1;
 		
-		if (finalAttackerCount + victimCount > graph.vertexSet().size())
-			victimCount = graph.vertexSet().size() - finalAttackerCount;
+		if (attackerCount + victimCount > graph.vertexSet().size())
+			victimCount = graph.vertexSet().size() - attackerCount;
 		
-		for (int j = 0; j < finalAttackerCount; j++)
+		for (int j = 0; j < attackerCount; j++)
 			graph.addVertex(j+"");
 		
 		Hashtable<String, String> fingerprints = new Hashtable<>();
-		for (int j = finalAttackerCount; j < finalAttackerCount + victimCount; j++) {
+		for (int j = attackerCount; j < attackerCount + victimCount; j++) {
 			String fingerprint = null;
 			do {
-				fingerprint = Integer.toBinaryString(random.nextInt((int)Math.pow(2, attackerCount) - 1) + 1);
-				while (fingerprint.length() < attackerCount)
-					fingerprint = "0" + fingerprint;
+				fingerprint = generateRandomFingerprint(random, nonRedundantAttackerCount);
+				//fingerprint = generateRandomFingerprint(random, nonRedundantAttackerCount, (attackerCount * (2 * (j - attackerCount) - 1)) / ( 2 * victimCount));   // Here we try to make the set of fingerprints distant from each other by forcing equally spaced amounts of zeroes
 				fingerprint = codec.encode(fingerprint);
+				for (int z = 0; z < codec.trailingZeroCount(attackerCount); z++)   // Is this really necessary if no decoding will ever be made?
+					fingerprint = fingerprint + "0";
 			} while (fingerprints.containsKey(fingerprint));
 			
 			fingerprints.put(fingerprint, fingerprint);
 			
 			for (int k = 0; k < fingerprint.length(); k++) {
 				if (fingerprint.charAt(k) == '1'){
-					graph.addEdge(j+"", (k + finalAttackerCount - fingerprint.length()) + "");
+					graph.addEdge(j+"", (k + attackerCount - fingerprint.length()) + "");
 				}
 			}
 		}
 		
-		if (finalAttackerCount > 1) {
-			for (int k = 0; k < finalAttackerCount - 1; k++) {
+		if (attackerCount > 1) {
+			for (int k = 0; k < attackerCount - 1; k++) {
 				graph.addEdge(k + "", (k+1) + "");
 			}
 		}				
@@ -95,8 +101,8 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		//}
 		//else {
 			// Default to the manner in which internal connections are generated in the original walk-based attack
-			for (int k = 0; k < finalAttackerCount - 2; k++) {
-				for (int l = k + 2; l < finalAttackerCount; l++) {
+			for (int k = 0; k < attackerCount - 2; k++) {
+				for (int l = k + 2; l < attackerCount; l++) {
 					if (random.nextBoolean() && !graph.containsEdge(k + "", l + "")) {
 						graph.addEdge(k + "", l + "");
 					}
@@ -105,23 +111,45 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		//}
 		
 	}
+	
+	protected String generateRandomFingerprint(SecureRandom random, int fpLength) {
+		String fingerprint = Integer.toBinaryString(random.nextInt((int)Math.pow(2, fpLength) - 1) + 1);
+		while (fingerprint.length() < fpLength)
+			fingerprint = "0" + fingerprint;
+		return fingerprint;
+	}
+	
+	protected String generateRandomFingerprint(SecureRandom random, int fpLength, int approxNumberOfOnes) {
+		String fingerprint = "";
+		for (int i = 0; i < fpLength; i++)
+			if (random.nextInt(fpLength) < approxNumberOfOnes)
+				fingerprint += "1";
+			else
+				fingerprint += "0";
+		return fingerprint;
+	}
 
 	@Override
 	public double successProbability(int attackerCount, int victimCount, UndirectedGraph<String, DefaultEdge> anonymizedGraph, UndirectedGraph<String, DefaultEdge> originalGraph) {
 		
-		int finalAttackerCount = attackerCount;
-		int chunkCount = (attackerCount % codec.getMessageLength() == 0)? attackerCount / codec.getMessageLength() : 1 + attackerCount / codec.getMessageLength();
-		finalAttackerCount = chunkCount * codec.getCodewordLength();
+		/**
+		 * In an initial implementation, the number of sybils for the non-error-correcting fingerprint was set and then the larger number of sybils 
+		 * for error-correcting fingerprints was determined. Now we do the opposite, an upper bound on the number of sybils is set, 
+		 * and the code determines the maximum number of non-redundant fingerprints that can be encoded into this bound   
+		 * */
+		//int finalAttackerCount = attackerCount;
+		//int chunkCount = (attackerCount % codec.getMessageLength() == 0)? attackerCount / codec.getMessageLength() : 1 + attackerCount / codec.getMessageLength();
+		//finalAttackerCount = chunkCount * codec.getCodewordLength();
 		
-		int[] sybilVertexDegrees = new int[finalAttackerCount];
-		boolean[][] sybilVertexLinks = new boolean[finalAttackerCount][finalAttackerCount];
+		int[] sybilVertexDegrees = new int[attackerCount];
+		boolean[][] sybilVertexLinks = new boolean[attackerCount][attackerCount];
 		
-		for (int i = 0; i < finalAttackerCount; i++) {   // Attackers are assumed to be the first attackerCount vertices in the graph, because of the manner in which the attack was simulated 
+		for (int i = 0; i < attackerCount; i++) {   // Attackers are assumed to be the first attackerCount vertices in the graph, because of the manner in which the attack was simulated 
 			sybilVertexDegrees[i] = originalGraph.degreeOf(i + "");
 		}
 		
-		for (int i = 0; i < finalAttackerCount; i++) {
-			for (int j = 0; j < finalAttackerCount; j++) {
+		for (int i = 0; i < attackerCount; i++) {
+			for (int j = 0; j < attackerCount; j++) {
 				if (originalGraph.containsEdge(i + "", j + ""))
 					sybilVertexLinks[i][j] = true;
 				else 
@@ -140,9 +168,9 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 			double successProbForCandidate = 1d; 
 			
 			ArrayList<String> originalFingerprints = new ArrayList<>();
-			for (int victim = finalAttackerCount; victim < finalAttackerCount + victimCount; victim++) {
+			for (int victim = attackerCount; victim < attackerCount + victimCount; victim++) {
 				String fingerprint = "";
-				for (int i = 0; i < finalAttackerCount; i++) {
+				for (int i = 0; i < attackerCount; i++) {
 					if (originalGraph.containsEdge(i + "", victim + ""))
 						fingerprint += "1";
 					else 
@@ -163,12 +191,16 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				HashMap<String, String> allFingerprints = new HashMap<>();
 				for (String v : anonymizedGraph.vertexSet()) {
 					String pvFingerprint = "";
-					for (int i = 0; i < finalAttackerCount; i++)
+					for (int i = 0; i < attackerCount; i++)
 						if (anonymizedGraph.containsEdge(v, candidate[i]))
 							pvFingerprint += "1";
 						else
 							pvFingerprint += "0";
-					pvFingerprint = codec.correctedCodeWord(pvFingerprint);
+					/**
+					 * In an initial implementation, we were decoding the fingerprint for correcting possible errors.
+					 * Now, we only use the encoding to increase edit-distance, but do not attempt to decode at this step 
+					 */
+					//pvFingerprint = codec.correctedCodeWord(pvFingerprint);
 					if (pvFingerprint.indexOf("1") != -1)
 						allFingerprints.put(v, pvFingerprint);
 				}
@@ -176,7 +208,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				Set<Integer> exactlyMatchedVictims = new HashSet<>();
 				boolean exactMatchFailed = false;
 				
-				for (int victim = finalAttackerCount; victim < finalAttackerCount + victimCount; victim++) {
+				for (int victim = attackerCount; victim < attackerCount + victimCount; victim++) {
 					int bucketSizeVictim = 0;
 					boolean victimInBucket = false;
 					for (String v : anonymizedGraph.vertexSet()) 
@@ -203,7 +235,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 					if (originalFingerprints.size() - exactlyMatchedVictims.size() <= allFingerprints.size()) {
 						
 						//FingerprintSetMatchingReturnValue matchingResult = approxFingerprintMatching(anonymizedGraph, candidate, allFingerprints, originalFingerprints, matchedVictims);
-						FingerprintSetMatchingReturnValue matchingResult = approxFingerprintMatching(allFingerprints, originalFingerprints, exactlyMatchedVictims, finalAttackerCount);
+						FingerprintSetMatchingReturnValue matchingResult = approxFingerprintMatching(allFingerprints, originalFingerprints, exactlyMatchedVictims, attackerCount);
 						
 						if (matchingResult.maxSimilarity <= 0)
 							successProbForCandidate = 0d;
@@ -218,7 +250,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				
 				// We will apply exact fingerprint matching, which will be based on Rolando's implementation
 				
-				for (int victim = finalAttackerCount; victim < finalAttackerCount + victimCount; victim++) {
+				for (int victim = attackerCount; victim < attackerCount + victimCount; victim++) {
 					
 					int cardinalityOfTheSubset = 0;
 					boolean victimInsideSubset = false;
@@ -234,8 +266,12 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 								tmpFingerprint += "0";
 						}
 						if (!vertInCandidate) {
+							/**
+							 * In an initial implementation, we were decoding the fingerprint for correcting possible errors.
+							 * Now, we only use the encoding to increase edit-distance, but do not attempt to decode at this step 
+							 */
 							//if (useErrorCorrectingFingerprints)
-								tmpFingerprint = codec.correctedCodeWord(tmpFingerprint);
+								//tmpFingerprint = codec.correctedCodeWord(tmpFingerprint);
 							if (tmpFingerprint.equals(originalFingerprints.get(victim))) {
 								cardinalityOfTheSubset++;
 								if (victim == Integer.parseInt(vertex))

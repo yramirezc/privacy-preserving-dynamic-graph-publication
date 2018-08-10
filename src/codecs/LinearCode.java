@@ -23,5 +23,13 @@ public abstract class LinearCode {
 	public int getMessageLength() {
 		return messageLength;
 	}
+	
+	public int maxPossibleMessageLength(int codewordLengthUpperBound) {
+		return messageLength * (codewordLengthUpperBound / codewordLength);
+	}
+	
+	public int trailingZeroCount(int codewordLengthUpperBound) {
+		return codewordLengthUpperBound % codewordLength;
+	}
 
 }
