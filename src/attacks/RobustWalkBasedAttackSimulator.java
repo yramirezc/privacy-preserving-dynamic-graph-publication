@@ -77,7 +77,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				fingerprint = generateRandomFingerprint(random, nonRedundantAttackerCount);
 				//fingerprint = generateRandomFingerprint(random, nonRedundantAttackerCount, (attackerCount * (2 * (j - attackerCount) - 1)) / ( 2 * victimCount));   // Here we try to make the set of fingerprints distant from each other by forcing equally spaced amounts of zeroes
 				fingerprint = codec.encode(fingerprint);
-				for (int z = 0; z < codec.trailingZeroCount(attackerCount); z++)   // Is this really necessary if no decoding will ever be made?
+				for (int z = 0; z < codec.trailingZeroCount(attackerCount); z++) 
 					fingerprint = fingerprint + "0";
 			} while (fingerprints.containsKey(fingerprint));
 			

@@ -4,6 +4,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.VertexFactory;
@@ -16,16 +19,19 @@ import org.jgrapht.graph.SimpleGraph;
 import anonymization.AdjacencyAnonymizer;
 import anonymization.DegreeAnonymityLiuTerzi;
 import anonymization.OddCycle;
+import real.FacebookGraph;
+import real.PanzarasaGraph;
+import real.URVMailGraph;
 import util.GraphUtil;
 import util.Statistics;
 
 public class ExperimentsRobustSybils {
 	
-	public static int getEdgeNum(int vexnum , double density){
-		return (int)(density*vexnum*(vexnum-1)/2);
-	}
+	//==================================================================================================================
 	
-	public static void experimentRobustSybils(String [] args) throws NoSuchAlgorithmException, IOException {
+	// On Erdos-Renyi random graphs
+	
+	public static void experimentRobustSybilsRandomNetworks(String [] args) throws NoSuchAlgorithmException, IOException {
 		
 		int vernum = 100;
 		
@@ -34,7 +40,6 @@ public class ExperimentsRobustSybils {
 		
 		int attackType = 0;   // Run the original walk-based attack by default
 		//int attackType = 3;
-		
 		
 		int attackerCounts[] = new int[]{1,4,8,16};
 		
@@ -56,18 +61,22 @@ public class ExperimentsRobustSybils {
 			for (int attackerCount : attackerCounts) {
 				for (int editDist : editDistances) {
 					int edgenum = getEdgeNum(vernum, density);				
-					String fileNameOutOriginalWalkBased = "Exp1-Rob-Syb-Original-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNameOutDistAnonymizationWalkBased = "Exp1-Rob-Syb-Dist-Anonymization-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNameOutDistTransformationWalkBased = "Exp1-Rob-Syb-Dist-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNameOutAdjTransformationWalkBased = "Exp1-Rob-Syb-Adj-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNamesOutsRandomPerturbations = "Exp1-Rob-Syb-Random-Perturbation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;					
-					oneRunExperimentRobustSybils(vernum, edgenum, attackType, attackerCount, editDist, fileNameOutOriginalWalkBased, fileNameOutDistAnonymizationWalkBased, fileNameOutDistTransformationWalkBased, fileNameOutAdjTransformationWalkBased, fileNamesOutsRandomPerturbations);
+					String fileNameOutOriginalWalkBased = "Exp3-Rob-Syb-Original-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNameOutDistAnonymizationWalkBased = "Exp3-Rob-Syb-Dist-Anonymization-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNameOutDistTransformationWalkBased = "Exp3-Rob-Syb-Dist-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNameOutAdjTransformationWalkBased = "Exp3-Rob-Syb-Adj-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNamesOutsRandomPerturbations = "Exp3-Rob-Syb-Random-Perturbation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;					
+					oneRunExperimentRobustSybilsRandomNetworks(vernum, edgenum, attackType, attackerCount, editDist, fileNameOutOriginalWalkBased, fileNameOutDistAnonymizationWalkBased, fileNameOutDistTransformationWalkBased, fileNameOutAdjTransformationWalkBased, fileNamesOutsRandomPerturbations);
 				}
 			}
 		}
 	}
 	
-	public static void oneRunExperimentRobustSybils(int n, int m, int attackType, int attackersCount, int maxEditDist, String fileNameOutOriginalWalkBased,
+	public static int getEdgeNum(int vexnum , double density) {
+		return (int)(density*vexnum*(vexnum-1)/2);
+	}
+	
+	public static void oneRunExperimentRobustSybilsRandomNetworks(int n, int m, int attackType, int attackersCount, int maxEditDist, String fileNameOutOriginalWalkBased,
 			String fileNameOutDistAnonymizationWalkBased, String fileNameOutDistTransformationWalkBased, String fileNameOutAdjTransformationWalkBased, 
 			String fileNamePrefixesOutsRandomPerturbations) throws NoSuchAlgorithmException, IOException {
 		
@@ -212,9 +221,204 @@ public class ExperimentsRobustSybils {
 				outsRandomPerturbations[ro].close();
 		}
 	}
+	
+	//==================================================================================================================
+	
+	// On a real social graph (Facebook, Panzarasa or URV)
+	
+	public static void experimentRobustSybilsRealNetworks(String [] args) throws NoSuchAlgorithmException, IOException {
+		if (args.length == 4) {
+			
+			int attackerCount = Integer.parseInt(args[1]);
+			int attackType = Integer.parseInt(args[2]);
+			int editDistance = Integer.parseInt(args[3]);
+			
+			if (args[0].equals("-facebook"))
+				oneRunExperimentRobustSybilsRealNetworks("facebook", attackerCount, attackType, editDistance);
+			else if (args[0].equals("-panzarasa"))
+				oneRunExperimentRobustSybilsRealNetworks("panzarasa", attackerCount, attackType, editDistance);
+			else if (args[0].equals("-urv"))
+				oneRunExperimentRobustSybilsRealNetworks("urv", attackerCount, attackType, editDistance);
+		}
+	}
+	
+	static void oneRunExperimentRobustSybilsRealNetworks(String networkName, int attackerCount, int attackType, int maxEditDist) throws IOException {
+		
+		String fileNameOutOriginal = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-original";
+		String fileNameOutDistAnonymized = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-dist-anonymized";
+		String fileNameOutDistTransformed = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-dist-transformed";
+		String fileNameOutAdjTransformedK2 = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-adj-transformed-k-2";
+		String fileNameOutAdjTransformedKAttCnt = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-adj-transformed-k-" + attackerCount;
+		
+//		String [] fileNamesOutAdjTransformed = new String[7];
+//		for (int k = 2; k < 9; k++)
+//			fileNamesOutAdjTransformed[k-2] = networkName + "-walk-based-" + attackerCount + "-adj-transformed-k-" + k;
+		
+		Writer outOriginal = new FileWriter(fileNameOutOriginal + ".dat", true);
+		Writer outDistAnonymized = new FileWriter(fileNameOutDistAnonymized + ".dat", true);
+		Writer outDistTransformed = new FileWriter(fileNameOutDistTransformed + ".dat", true);
+		Writer outAdjTransformedK2 = new FileWriter(fileNameOutAdjTransformedK2 + ".dat", true);
+		Writer outAdjTransformedKAttCnt = new FileWriter(fileNameOutAdjTransformedKAttCnt + ".dat", true);
+		
+//		Writer [] outsAdjTransformed = new Writer[7];
+//		for (int k = 2; k < 9; k++)
+//			outsAdjTransformed[k-2] = new FileWriter(fileNamesOutAdjTransformed[k-2] + ".dat", true);
+		
+		int percentages[] = new int[] {5, 10, 25};
+		String[] fileNamesOutsRandomPerturbations = new String[percentages.length];
+		Writer[] outsRandomPerturbations = new Writer[percentages.length];
+		for (int pct = 0; pct < percentages.length; pct++) {
+			fileNamesOutsRandomPerturbations[pct] = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-Random-Perturbation-" + percentages[pct] + "-pct-Flips";
+			outsRandomPerturbations[pct] = new FileWriter(fileNamesOutsRandomPerturbations[pct] + ".DAT", true);
+		}
+		
+		UndirectedGraph<String, DefaultEdge> graph = null; 
+				
+		if (networkName.equals("facebook")) {
+			graph = new FacebookGraph(DefaultEdge.class); 
+		} else if (networkName.equals("panzarasa")) {
+			graph = new PanzarasaGraph(DefaultEdge.class);
+		} else {   // URV
+			graph = new URVMailGraph(DefaultEdge.class);
+		}
+		
+		ConnectivityInspector<String, DefaultEdge> connectivity = new ConnectivityInspector<>(graph);
+		List<Set<String>> connComp = connectivity.connectedSets();
+		
+		Set<String> verticesToKeep = null;
+		int maximum = 0;
+		for (Set<String> comp : connComp) {
+			if (comp.size() > maximum) {
+				maximum = comp.size();
+				verticesToKeep = new HashSet<String>(comp);
+			}
+		}
+		
+		int victimCount = attackerCount;
+		
+		SybilAttackSimulator attackSimulator = null;
+		
+		switch (attackType) {
+		case 0:   // Original walk-based attack
+			attackSimulator = new OriginalWalkBasedAttackSimulator();
+			break;
+		case 1:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: no, approximate fingerprint matching: yes, error-correcting fingerprints: yes
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, false, true, true);
+			break;
+		case 2:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: no, approximate fingerprint matching: no, error-correcting fingerprints: yes
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, false, false, true);
+			break;
+		case 3:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: no, approximate fingerprint matching: yes, error-correcting fingerprints: no
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, false, true, false);
+			break;
+		case 4:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: no, approximate fingerprint matching: no, error-correcting fingerprints: no
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, false, false, false);
+			break;
+		case 5:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: yes, approximate fingerprint matching: yes, error-correcting fingerprints: yes
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, true, true, true);
+			break;
+		case 6:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: yes, approximate fingerprint matching: no, error-correcting fingerprints: yes
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, true, false, true);
+			break;			
+		case 7:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: yes, approximate fingerprint matching: yes, error-correcting fingerprints: no
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, true, true, false);
+			break;
+		case 8:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: yes, approximate fingerprint matching: no, error-correcting fingerprints: no
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, true, false, false);
+			break;
+		default:
+			break;
+		}
+		
+		for (int i = 0; i < 1000; i++) {	 // Although it is the same graph, every iteration shuffles its vertex set, so the attacker targets different victims 
+		
+			UndirectedGraph<String, DefaultEdge> attackedGraph = null;
+			
+			do {
+				
+				attackedGraph = GraphUtil.transformRealSocNetIntoOurFormat(graph, attackerCount, verticesToKeep);
+				
+				connectivity = new ConnectivityInspector<>(attackedGraph);
+				if (!connectivity.isGraphConnected()) 
+					throw new RuntimeException();
+				
+				victimCount = attackerCount;
+				
+				if (victimCount == 0)
+					victimCount = 1;
+				
+				if (attackerCount + victimCount > attackedGraph.vertexSet().size())
+					victimCount = attackedGraph.vertexSet().size() - attackerCount;
+				
+				attackSimulator.simulateAttackerSubgraphCreation(attackedGraph, attackerCount, victimCount);
+				
+				connectivity = new ConnectivityInspector<>(attackedGraph);
+				
+			} while (!connectivity.isGraphConnected());
+			
+			FloydWarshallShortestPaths<String, DefaultEdge> floydOriginal = new FloydWarshallShortestPaths<>(attackedGraph);
+			Statistics.printStatisticsRobustSybilsExp(i, outOriginal, attackedGraph, floydOriginal, fileNameOutOriginal, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
+			
+			// Random perturbations
+			
+			for (int pct = 0; pct < percentages.length; pct++) {
+				SimpleGraph<String, DefaultEdge> randomlyPerturbedGraphWalkBased = GraphUtil.cloneGraph(attackedGraph);
+				int flipCount = (int)(((double)(percentages[pct]) / 100d) * (double)(attackedGraph.vertexSet().size() * (attackedGraph.vertexSet().size() - 1) / 2));
+				GraphUtil.flipRandomEdges(flipCount, randomlyPerturbedGraphWalkBased);
+				FloydWarshallShortestPaths<String, DefaultEdge> floydRandomlyPerturtbedGraph = new FloydWarshallShortestPaths<>(randomlyPerturbedGraphWalkBased);			
+				Statistics.printStatisticsRobustSybilsExp(i, outsRandomPerturbations[pct], randomlyPerturbedGraphWalkBased, floydRandomlyPerturtbedGraph, fileNamesOutsRandomPerturbations[pct], attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
+			}
+			
+			// (2,Gamma_{G,1})-adjacency anonymity
+//			for (int k = 2; k < 9; k++) {
+			SimpleGraph<String, DefaultEdge> graph2AdjTransformed = GraphUtil.cloneGraph(attackedGraph);
+			AdjacencyAnonymizer.k1AdjAnonymousTransformation(graph2AdjTransformed, 2);
+			FloydWarshallShortestPaths<String, DefaultEdge> floyd2AdjTransformed = new FloydWarshallShortestPaths<>(graph2AdjTransformed);
+			Statistics.printStatisticsRobustSybilsExp(i, outAdjTransformedK2, graph2AdjTransformed, floyd2AdjTransformed, fileNameOutAdjTransformedK2, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
+//			}
+			
+			// (attackerCount, Gamma_{G,1})-adjacency anonymity
+//			for (int k = 2; k < 9; k++) {
+			SimpleGraph<String, DefaultEdge> graphAttCntAdjTransformed = GraphUtil.cloneGraph(attackedGraph);
+			AdjacencyAnonymizer.k1AdjAnonymousTransformation(graphAttCntAdjTransformed, attackerCount);
+			FloydWarshallShortestPaths<String, DefaultEdge> floydAttCntAdjTransformed = new FloydWarshallShortestPaths<>(graphAttCntAdjTransformed);
+			Statistics.printStatisticsRobustSybilsExp(i, outAdjTransformedKAttCnt, graphAttCntAdjTransformed, floydAttCntAdjTransformed, fileNameOutAdjTransformedKAttCnt, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
+//			}
+			
+			// (2,Gamma_{G,1})-anonymity
+			
+			SimpleGraph<String, DefaultEdge> graphDistTransformed = GraphUtil.cloneGraph(attackedGraph);
+			OddCycle.anonymousTransformation(graphDistTransformed, floydOriginal);
+			FloydWarshallShortestPaths<String, DefaultEdge> floydDistTransformed = new FloydWarshallShortestPaths<>(graphDistTransformed);
+			Statistics.printStatisticsRobustSybilsExp(i, outDistTransformed, graphDistTransformed, floydDistTransformed, fileNameOutDistTransformed, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
+			
+			// (>1,>1)-anonymity
+			
+			SimpleGraph<String, DefaultEdge> graphDistAnonymized = GraphUtil.cloneGraph(attackedGraph);
+			OddCycle.anonymizeGraph(graphDistAnonymized, floydOriginal, 3);
+			FloydWarshallShortestPaths<String, DefaultEdge> floydDistAnonymized = new FloydWarshallShortestPaths<>(graphDistAnonymized);
+			Statistics.printStatisticsRobustSybilsExp(i, outDistAnonymized, graphDistAnonymized, floydDistAnonymized, fileNameOutDistAnonymized, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
+		}
+		
+		outOriginal.close();
+		outDistAnonymized.close();
+		outDistTransformed.close();
+		outAdjTransformedK2.close();
+		outAdjTransformedKAttCnt.close();
+//		for (int k = 2; k < 9; k++)
+//			outsAdjTransformed[k-2].close();
+		for (int ro = 0; ro < percentages.length; ro++)
+			outsRandomPerturbations[ro].close();
+		
+	}
+	
+	//==================================================================================================================
 
 	public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
-		experimentRobustSybils(args);	
+		if (args.length == 4)
+			experimentRobustSybilsRealNetworks(args);
+		else
+			experimentRobustSybilsRandomNetworks(args);	
 	}
 
 }
