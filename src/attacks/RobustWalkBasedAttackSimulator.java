@@ -8,14 +8,19 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+
 import org.jgrapht.Graphs;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+
 import codecs.Hamming74Code;
 import codecs.LinearCode;
 import codecs.NonEncodingCode;
 import util.FSimCoincidenceCount;
 import util.FingerprintSimilarity;
+import util.GraphUtil;
 
 public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 	
@@ -30,12 +35,31 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 	
 	protected int maxEditDistance;
 	protected boolean applySybilDegSeqOptimization;
+	protected boolean useUniformlyDistributedFingerprints;
 	protected boolean applyApproxFingerprintMatching;
 	protected LinearCode codec;
+	protected Set<String> uniformlyDistributedFingerprints;
+	int lengthUnifDistFingerprints; 
 
-	public RobustWalkBasedAttackSimulator(int maxEditDist, boolean sybDegSeqOpt, boolean apprFgPrMatch, boolean useErrorCorrectingFingerprints) {
+	public RobustWalkBasedAttackSimulator(int maxEditDist, boolean sybDegSeqOpt, boolean apprFgPrMatch, boolean useErrorCorrectingFingerprints) {   // This constructor ignores fingerprint dispersion. Kept for back-compatibility
 		maxEditDistance = maxEditDist;
 		applySybilDegSeqOptimization = sybDegSeqOpt;
+		useUniformlyDistributedFingerprints = false;
+		uniformlyDistributedFingerprints = null;
+		lengthUnifDistFingerprints = -1;
+		applyApproxFingerprintMatching = apprFgPrMatch;
+		if (useErrorCorrectingFingerprints)
+			codec = new Hamming74Code();
+		else
+			codec = new NonEncodingCode();
+	}
+	
+	public RobustWalkBasedAttackSimulator(int maxEditDist, boolean sybDegSeqOpt, boolean unifDistrFgPr, boolean apprFgPrMatch, boolean useErrorCorrectingFingerprints) {
+		maxEditDistance = maxEditDist;
+		applySybilDegSeqOptimization = sybDegSeqOpt;
+		useUniformlyDistributedFingerprints = unifDistrFgPr;
+		uniformlyDistributedFingerprints = null;
+		lengthUnifDistFingerprints = -1;
 		applyApproxFingerprintMatching = apprFgPrMatch;
 		if (useErrorCorrectingFingerprints)
 			codec = new Hamming74Code();
@@ -67,39 +91,85 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		if (attackerCount + victimCount > graph.vertexSet().size())
 			victimCount = graph.vertexSet().size() - attackerCount;
 		
+		// Add attacker vertices
 		for (int j = 0; j < attackerCount; j++)
 			graph.addVertex(j+"");
 		
-		Hashtable<String, String> fingerprints = new Hashtable<>();
-		for (int j = attackerCount; j < attackerCount + victimCount; j++) {
-			String fingerprint = null;
-			do {
-				fingerprint = generateRandomFingerprint(random, nonRedundantAttackerCount);
-				//fingerprint = generateRandomFingerprint(random, nonRedundantAttackerCount, (attackerCount * (2 * (j - attackerCount) - 1)) / ( 2 * victimCount));   // Here we try to make the set of fingerprints distant from each other by forcing equally spaced amounts of zeroes
-				fingerprint = codec.encode(fingerprint);
-				for (int z = 0; z < codec.trailingZeroCount(attackerCount); z++) 
-					fingerprint = fingerprint + "0";
-			} while (fingerprints.containsKey(fingerprint));
+		if (useUniformlyDistributedFingerprints) {
 			
-			fingerprints.put(fingerprint, fingerprint);
-			
-			for (int k = 0; k < fingerprint.length(); k++) {
-				if (fingerprint.charAt(k) == '1'){
-					graph.addEdge(j+"", (k + attackerCount - fingerprint.length()) + "");
-				}
+			if (uniformlyDistributedFingerprints == null || uniformlyDistributedFingerprints.size() != victimCount || lengthUnifDistFingerprints != attackerCount) {   // Once a set of uniformly distributed fingerprints is created, it will be used later on as many times as possible
+				lengthUnifDistFingerprints = attackerCount;
+				uniformlyDistributedFingerprints = generateDistributedSetOfFingerprints(victimCount, attackerCount);
 			}
+			// else the already available set of uniformly distributed fingerprints will be used 
+			
+			// Once the set of uniformly distributed fingerprints is ensured to be available, add necessary edges to the graph
+			for (int j = attackerCount; j < attackerCount + victimCount; j++)
+				for (String fingerprint : uniformlyDistributedFingerprints)	
+					for (int k = 0; k < fingerprint.length(); k++) 
+						if (fingerprint.charAt(k) == '1') 
+							graph.addEdge(j+"", (k + attackerCount - fingerprint.length()) + "");
+		}
+		else {
+			// Default to the manner in which fingerprints are generated in the original walk-based attack
+			Hashtable<String, String> fingerprints = new Hashtable<>();
+			for (int j = attackerCount; j < attackerCount + victimCount; j++) {
+				String fingerprint = null;
+				do {
+					fingerprint = generateRandomFingerprint(random, nonRedundantAttackerCount);
+					fingerprint = codec.encode(fingerprint);
+					for (int z = 0; z < codec.trailingZeroCount(attackerCount); z++) 
+						fingerprint = fingerprint + "0";
+				} while (fingerprints.containsKey(fingerprint));
+				
+				fingerprints.put(fingerprint, fingerprint);
+				
+				for (int k = 0; k < fingerprint.length(); k++) 
+					if (fingerprint.charAt(k) == '1') 
+						graph.addEdge(j+"", (k + attackerCount - fingerprint.length()) + "");
+			}
+			
 		}
 		
-		if (attackerCount > 1) {
-			for (int k = 0; k < attackerCount - 1; k++) {
+		// Force existence of path setting order of sybils
+		if (attackerCount > 1) 
+			for (int k = 0; k < attackerCount - 1; k++) 
 				graph.addEdge(k + "", (k+1) + "");
-			}
-		}				
 		
-		//if (applySybilDegSeqOptimization) {
+		if (applySybilDegSeqOptimization) {
+		    
+			/* 
+		     * Eppstein et al.'s scale-free random graph
+			 */
 			
-		//}
-		//else {
+//			int avDegree = (attackerCount - 1) / 4;   // Needs to be parameterized
+//			double gamma = 2.5;   // Needs to be parameterized
+//			double K0 = avDegree * ((gamma - 2) * (gamma - 2)) / ((gamma - 1) * (gamma - 1));   // This parameter is defined in Eppstein et al.'s paper
+//			for (int k = 0; k < attackerCount - 2; k++) {
+//				for (int l = k + 2; l < attackerCount; l++) {
+//					double prob = K0 * Math.pow((k + 1) * (l + 1) * Math.pow(attackerCount, gamma - 3), -1d / (gamma - 1));   // This computation is defined in Eppstein et al.'s paper
+//					if (random.nextDouble() < prob && !graph.containsEdge(k + "", l + "")) {
+//						graph.addEdge(k + "", l + "");
+//					}
+//				}
+//			}
+			
+			/* 
+		     * Erdos-Renyi with large p 
+			 */
+			
+			double p = 0.75d;
+			
+			for (int k = 0; k < attackerCount - 2; k++) {
+				for (int l = k + 2; l < attackerCount; l++) {
+					if (random.nextDouble() < p && !graph.containsEdge(k + "", l + "")) {
+						graph.addEdge(k + "", l + "");
+					}
+				}
+			}
+			
+		}
+		else {
 			// Default to the manner in which internal connections are generated in the original walk-based attack
 			for (int k = 0; k < attackerCount - 2; k++) {
 				for (int l = k + 2; l < attackerCount; l++) {
@@ -108,7 +178,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 					}
 				}
 			}
-		//}
+		}
 		
 	}
 	
@@ -127,6 +197,46 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 			else
 				fingerprint += "0";
 		return fingerprint;
+	}
+	
+	protected Set<String> generateDistributedSetOfFingerprints(int fpCount, int fpLength) {
+		int boundDist = 1;
+		UndirectedGraph<String, DefaultEdge> grid = generateGrid(fpLength, boundDist);
+		Set<String> independentSet = GraphUtil.greedyMaxIndependentSet(grid);
+		Set<String> fingerprints = independentSet;
+		while (independentSet.size() >= fpCount && boundDist <= fpLength) {
+			boundDist++;
+			grid = generateGrid(fpLength, boundDist);
+			independentSet = GraphUtil.greedyMaxIndependentSet(grid);
+			if (independentSet.size() >= fpCount)
+				fingerprints = independentSet;
+		}
+		return fingerprints;
+	}
+	
+	protected UndirectedGraph<String, DefaultEdge> generateGrid(int fpLength, int boundDist) {
+		UndirectedGraph<String, DefaultEdge> grid = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
+		for (int i = 1; i < Math.pow(2, fpLength); i++) {   // The vertices of the grid will be all binary strings of length fpLength, except "00...0"
+			String fingerprint = Integer.toBinaryString(i); 
+			while (fingerprint.length() < fpLength)
+				fingerprint = "0" + fingerprint;
+			grid.addVertex(fingerprint);
+			// Generate all edges from the new fingerprint to previously added fingerprints at distance boundDist or less
+			for (String v : grid.vertexSet()) 
+				if (!v.equals(fingerprint) && fpDistance(v, fingerprint) <= boundDist) 
+					grid.addEdge(v, fingerprint);
+		}
+		return grid;
+	}
+	
+	protected int fpDistance(String fp1, String fp2) {
+		if (fp1.length() != fp2.length())
+			return Integer.MAX_VALUE;
+		int sizeSimmDiff = 0;
+		for (int i = 0; i < fp1.length(); i++)
+			if (fp1.charAt(i) != fp2.charAt(i))
+				sizeSimmDiff++;
+		return sizeSimmDiff;
 	}
 
 	@Override

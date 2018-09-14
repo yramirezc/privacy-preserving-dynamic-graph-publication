@@ -7,7 +7,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.VertexFactory;
 import org.jgrapht.alg.ConnectivityInspector;
@@ -15,9 +14,7 @@ import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.generate.RandomGraphGenerator;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
-
 import anonymization.AdjacencyAnonymizer;
-import anonymization.DegreeAnonymityLiuTerzi;
 import anonymization.OddCycle;
 import real.FacebookGraph;
 import real.PanzarasaGraph;
@@ -135,6 +132,11 @@ public class ExperimentsRobustSybils {
 		case 8:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: yes, approximate fingerprint matching: no, error-correcting fingerprints: no
 			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, true, false, false);
 			break;
+			
+		case 9:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: no, uniformly distributed fingerprints: yes, approximate fingerprint matching: yes, error-correcting fingerprints: no
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, false, true, true, false);
+			break;
+		
 		default:
 			break;
 		} 

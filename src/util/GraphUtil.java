@@ -835,6 +835,31 @@ public class GraphUtil {
 		}
 		return result;
 	}
+	
+	public static Set<String> greedyMaxIndependentSet(UndirectedGraph<String, DefaultEdge> graph) {
+		
+		boolean foundNonIsolated = false;
+		
+		// Main step, iteratively find minimum degree non-isolated vertex and remove all its neighbors
+		do {
+			foundNonIsolated = false;
+			int minDegree = Integer.MAX_VALUE;
+			String vertMinDegree = "";   // This will be updated at least in the first iteration, since minDegree was initialized with a value greater than any possible value in the graph
+			for (String v : graph.vertexSet())
+				if (graph.degreeOf(v) > 0 && graph.degreeOf(v) < minDegree) {
+					foundNonIsolated = true;
+					minDegree = graph.degreeOf(v);
+					vertMinDegree = v;
+				}
+			if (foundNonIsolated) {
+				List<String> neighbors = Graphs.neighborListOf(graph, vertMinDegree);
+				for (String n : neighbors)
+					graph.removeVertex(n);
+			}	
+		} while (foundNonIsolated);
+		
+		return graph.vertexSet();
+	}
 
 }
 
