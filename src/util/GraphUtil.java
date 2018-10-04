@@ -836,6 +836,14 @@ public class GraphUtil {
 		return result;
 	}
 	
+	public static Set<String> greedyMaxIndependentSet(UndirectedGraph<String, DefaultEdge> graph, boolean workOnCopyOfGraph) {
+		if (workOnCopyOfGraph)
+			return greedyMaxIndependentSet(cloneGraph(graph));
+		else 
+			return greedyMaxIndependentSet(graph);
+	}
+	
+	// This implementation modifies the graph received as parameter
 	public static Set<String> greedyMaxIndependentSet(UndirectedGraph<String, DefaultEdge> graph) {
 		
 		boolean foundNonIsolated = false;
@@ -860,6 +868,6 @@ public class GraphUtil {
 		
 		return graph.vertexSet();
 	}
-
+	
 }
 

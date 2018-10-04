@@ -36,7 +36,7 @@ public class ExperimentsRobustSybils {
 		double[] densities = new double[]{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95};
 		
 		int attackType = 0;   // Run the original walk-based attack by default
-		//int attackType = 3;
+		//int attackType = 3; 
 		
 		int attackerCounts[] = new int[]{1,4,8,16};
 		
@@ -54,15 +54,18 @@ public class ExperimentsRobustSybils {
 			editDistances[0] = Integer.parseInt(args[4]);
 		}   // else the defaults defined above are taken
 		
+		//String expNamePrefix = "Exp3";
+		String expNamePrefix = "Exp4"; 
+		
 		for (double density : densities) {
 			for (int attackerCount : attackerCounts) {
 				for (int editDist : editDistances) {
 					int edgenum = getEdgeNum(vernum, density);				
-					String fileNameOutOriginalWalkBased = "Exp3-Rob-Syb-Original-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNameOutDistAnonymizationWalkBased = "Exp3-Rob-Syb-Dist-Anonymization-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNameOutDistTransformationWalkBased = "Exp3-Rob-Syb-Dist-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNameOutAdjTransformationWalkBased = "Exp3-Rob-Syb-Adj-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
-					String fileNamesOutsRandomPerturbations = "Exp3-Rob-Syb-Random-Perturbation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;					
+					String fileNameOutOriginalWalkBased = expNamePrefix + "-Rob-Syb-Original-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNameOutDistAnonymizationWalkBased = expNamePrefix + "-Rob-Syb-Dist-Anonymization-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNameOutDistTransformationWalkBased = expNamePrefix + "-Rob-Syb-Dist-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNameOutAdjTransformationWalkBased = expNamePrefix + "-Rob-Syb-Adj-Transformation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;
+					String fileNamesOutsRandomPerturbations = expNamePrefix + "-Rob-Syb-Random-Perturbation-V-" + vernum + "-D-" + density + "-WalkBased-A-" + attackerCount + "-AttackType-" + attackType + "-EditDist-" + editDist;					
 					oneRunExperimentRobustSybilsRandomNetworks(vernum, edgenum, attackType, attackerCount, editDist, fileNameOutOriginalWalkBased, fileNameOutDistAnonymizationWalkBased, fileNameOutDistTransformationWalkBased, fileNameOutAdjTransformationWalkBased, fileNamesOutsRandomPerturbations);
 				}
 			}
@@ -85,7 +88,8 @@ public class ExperimentsRobustSybils {
 		Writer outDistTransformationWalkBased = new FileWriter(fileNameOutDistTransformationWalkBased+".DAT", true);
 		Writer outAdjTransformationWalkBased = new FileWriter(fileNameOutAdjTransformationWalkBased+".DAT", true);
 		
-		int percentages[] = new int[] {1, 5, 10, 25, 50};
+		//int percentages[] = new int[] {1, 5, 10, 25, 50};
+		int percentages[] = new int[] {5, 10, 25};
 		String[] fileNamesOutsRandomPerturbations = new String[percentages.length];
 		Writer[] outsRandomPerturbations = new Writer[percentages.length];
 		for (int pct = 0; pct < percentages.length; pct++) {
@@ -132,19 +136,17 @@ public class ExperimentsRobustSybils {
 		case 8:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: yes, approximate fingerprint matching: no, error-correcting fingerprints: no
 			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, true, false, false);
 			break;
-			
 		case 9:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: no, uniformly distributed fingerprints: yes, approximate fingerprint matching: yes, error-correcting fingerprints: no
 			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, false, true, true, false);
 			break;
-		
 		default:
 			break;
 		} 
 		
 		if (attackSimulator != null) {
 			
-			//int total = 100000;
-			int total = 10000;
+			int total = 100000;
+			//int total = 10000;
 			
 			for (int i = 1; i <= total ; i++) {
 				
@@ -205,7 +207,7 @@ public class ExperimentsRobustSybils {
 				FloydWarshallShortestPaths<String, DefaultEdge> floydDistTransformedGraph = new FloydWarshallShortestPaths<>(anonDistTransformedGraphWalkBased);			
 				Statistics.printStatisticsRobustSybilsExp(i, outDistTransformationWalkBased, anonDistTransformedGraphWalkBased, floydDistTransformedGraph, fileNameOutDistTransformationWalkBased, attackersCount, victimsCountWalkBased, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
 				
-				// (2,\Gamma_1)-adjacency anonymity
+				// (attackersCount,\Gamma_1)-adjacency anonymity
 				
 				SimpleGraph<String, DefaultEdge> anonAdjTransformedGraphWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph); 
 				//AdjacencyAnonymizer.k1AdjAnonymousTransformation(anonAdjTransformedGraphWalkBased, 2);
@@ -246,11 +248,13 @@ public class ExperimentsRobustSybils {
 	
 	static void oneRunExperimentRobustSybilsRealNetworks(String networkName, int attackerCount, int attackType, int maxEditDist) throws IOException {
 		
-		String fileNameOutOriginal = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-original";
-		String fileNameOutDistAnonymized = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-dist-anonymized";
-		String fileNameOutDistTransformed = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-dist-transformed";
-		String fileNameOutAdjTransformedK2 = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-adj-transformed-k-2";
-		String fileNameOutAdjTransformedKAttCnt = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-adj-transformed-k-" + attackerCount;
+		String expNamePrefix = "Exp3";
+		
+		String fileNameOutOriginal = expNamePrefix + "-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-original";
+		String fileNameOutDistAnonymized = expNamePrefix + "-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-dist-anonymized";
+		String fileNameOutDistTransformed = expNamePrefix + "-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-dist-transformed";
+		String fileNameOutAdjTransformedK2 = expNamePrefix + "-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-adj-transformed-k-2";
+		String fileNameOutAdjTransformedKAttCnt = expNamePrefix + "-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-adj-transformed-k-" + attackerCount;
 		
 //		String [] fileNamesOutAdjTransformed = new String[7];
 //		for (int k = 2; k < 9; k++)
@@ -270,7 +274,7 @@ public class ExperimentsRobustSybils {
 		String[] fileNamesOutsRandomPerturbations = new String[percentages.length];
 		Writer[] outsRandomPerturbations = new Writer[percentages.length];
 		for (int pct = 0; pct < percentages.length; pct++) {
-			fileNamesOutsRandomPerturbations[pct] = "Exp3-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-Random-Perturbation-" + percentages[pct] + "-pct-Flips";
+			fileNamesOutsRandomPerturbations[pct] = expNamePrefix + "-Rob-Syb-" + networkName + "-AttackType-" + attackType + "-AttackerCount-" + attackerCount + "-EditDist-" + maxEditDist + "-Random-Perturbation-" + percentages[pct] + "-pct-Flips";
 			outsRandomPerturbations[pct] = new FileWriter(fileNamesOutsRandomPerturbations[pct] + ".DAT", true);
 		}
 		
@@ -327,6 +331,9 @@ public class ExperimentsRobustSybils {
 			break;
 		case 8:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: yes, approximate fingerprint matching: no, error-correcting fingerprints: no
 			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, true, false, false);
+			break;
+		case 9:   // Robust sybil retrieval: yes (it is always yes), degree sequence optimization: no, uniformly distributed fingerprints: yes, approximate fingerprint matching: yes, error-correcting fingerprints: no
+			attackSimulator = new RobustWalkBasedAttackSimulator(maxEditDist, false, true, true, false);
 			break;
 		default:
 			break;

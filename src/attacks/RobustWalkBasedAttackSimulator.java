@@ -100,6 +100,15 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 			if (uniformlyDistributedFingerprints == null || uniformlyDistributedFingerprints.size() != victimCount || lengthUnifDistFingerprints != attackerCount) {   // Once a set of uniformly distributed fingerprints is created, it will be used later on as many times as possible
 				lengthUnifDistFingerprints = attackerCount;
 				uniformlyDistributedFingerprints = generateDistributedSetOfFingerprints(victimCount, attackerCount);
+				if (uniformlyDistributedFingerprints.size() > victimCount) {
+					ArrayList<String> fpArray = new ArrayList<>(uniformlyDistributedFingerprints);
+					uniformlyDistributedFingerprints = new TreeSet<>();
+					for (int mdf = 0; mdf < victimCount; mdf++) {
+						int indSel = random.nextInt(fpArray.size());
+						uniformlyDistributedFingerprints.add(fpArray.get(indSel));
+						fpArray.remove(indSel);
+					}
+				}
 			}
 			// else the already available set of uniformly distributed fingerprints will be used 
 			
