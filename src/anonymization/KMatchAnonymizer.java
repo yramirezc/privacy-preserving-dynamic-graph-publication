@@ -7,7 +7,7 @@ import org.jgrapht.graph.SimpleGraph;
 public class KMatchAnonymizer {
 
 	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k) {
-		//test first commit
+		//test first commit with correct account
 	}
 	
 	public static void main(String [] args) {
