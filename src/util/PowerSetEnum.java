@@ -43,7 +43,7 @@ public class PowerSetEnum<T> implements Enumeration<Set<T>>{
 			result = new HashSet<>();
 			long tmpPos = currentPos;
 			for (int i = 0; i < set.size(); i++) {
-				if (tmpPos % 2 == 1) {
+				if (tmpPos % 2 == 0) {
 					result.add(set.get(i));
 				}
 				tmpPos = tmpPos/2;
