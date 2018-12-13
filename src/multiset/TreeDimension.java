@@ -44,59 +44,57 @@ public class TreeDimension {
 //	}
 
 	public static void main(String[] args) throws FileNotFoundException {
-		mainParallel(args);
+		mainParallel(Integer.parseInt(args[0]));
 	}
 
-	public static void mainParallel(String[] args) throws FileNotFoundException {
+	public static void mainParallel(int degree) throws FileNotFoundException {
 
-		for (int degree = 2; degree < 9; degree++) {
-			System.out.println("Starting for degree = "+degree);
-			System.setOut(new PrintStream(new File("out-"+degree+".txt")));
-			int estimatedLowerBound = 1; 
-			int estimatedUpperBound = degree-1; 
-			int depth = 1;
-			Set<Set<String>> bases = null;
+		System.out.println("Starting for degree = "+degree);
+		System.setOut(new PrintStream(new File("out-"+degree+".txt")));
+		int estimatedLowerBound = 1; 
+		int estimatedUpperBound = degree-1; 
+		int depth = 1;
+		Set<Set<String>> bases = null;
+		do {
+			Print.print("Looking bases for depth = "+depth+" with estimated lower bound = "
+					+estimatedLowerBound+ " and estimated upper bound = "+estimatedUpperBound);
+			SimpleGraph<String, DefaultEdge> tree = generateFullTree(depth, degree);
+			//iniBound = tree.vertexSet().size();
+			Print.printGraph(tree);
+			ExecutorService executor = Executors.newFixedThreadPool(estimatedUpperBound-estimatedLowerBound+1);
+			BaseFinder[] finders = new BaseFinder[estimatedUpperBound-estimatedLowerBound+1];
+			Future[] finderStatus = new Future[estimatedUpperBound-estimatedLowerBound+1]; 
+			for (int i = estimatedLowerBound; i<= estimatedUpperBound; i++) {
+				finders[i-estimatedLowerBound] = new BaseFinder(tree, i);
+				finderStatus[i-estimatedLowerBound]  = executor.submit(finders[i-estimatedLowerBound]);
+			}
+			Print.print("Waiting for threats to finish");
+			int optimum = 0;
+			bases = null;
 			do {
-				Print.print("Looking bases for depth = "+depth+" with estimated lower bound = "
-						+estimatedLowerBound+ " and estimated upper bound = "+estimatedUpperBound);
-				SimpleGraph<String, DefaultEdge> tree = generateFullTree(depth, degree);
-				//iniBound = tree.vertexSet().size();
-				Print.printGraph(tree);
-				ExecutorService executor = Executors.newFixedThreadPool(estimatedUpperBound-estimatedLowerBound+1);
-				BaseFinder[] finders = new BaseFinder[estimatedUpperBound-estimatedLowerBound+1];
-				Future[] finderStatus = new Future[estimatedUpperBound-estimatedLowerBound+1]; 
-				for (int i = estimatedLowerBound; i<= estimatedUpperBound; i++) {
-					finders[i-estimatedLowerBound] = new BaseFinder(tree, i);
-					finderStatus[i-estimatedLowerBound]  = executor.submit(finders[i-estimatedLowerBound]);
-				}
-				Print.print("Waiting for threats to finish");
-				int optimum = 0;
-				bases = null;
-				do {
-					for (int i = 0; i < finders.length; i++) {
-						if (finderStatus[i].isDone() && i == optimum) {
-							if (finders[i].bases().isEmpty()) {
-								optimum++;
-							}
-							else {
-								bases = finders[i].bases();
-								break;
-							}
+				for (int i = 0; i < finders.length; i++) {
+					if (finderStatus[i].isDone() && i == optimum) {
+						if (finders[i].bases().isEmpty()) {
+							optimum++;
+						}
+						else {
+							bases = finders[i].bases();
+							break;
 						}
 					}
-				} while (bases == null);
-				executor.shutdownNow();
-				Print.print("All threats finished");
-				System.out.println("The bases are: ");
-				for (Set<String> base : bases) {
-					Print.printList(base);
 				}
-				estimatedLowerBound = bases.iterator().next().size()*degree;
-				estimatedUpperBound = bases.iterator().next().size()*degree+degree-1;
-				depth++;
-			} while (bases.size() < degree+1);
-			System.out.println("End");
-		}
+			} while (bases == null);
+			executor.shutdownNow();
+			Print.print("All threats finished");
+			System.out.println("The bases are: ");
+			for (Set<String> base : bases) {
+				Print.printList(base);
+			}
+			estimatedLowerBound = bases.iterator().next().size()*degree;
+			estimatedUpperBound = bases.iterator().next().size()*degree+degree-1;
+			depth++;
+		} while (bases.size() < degree+1);
+		System.out.println("End");
 	}
 
 	public static void mainSequential(String[] args) throws FileNotFoundException {
