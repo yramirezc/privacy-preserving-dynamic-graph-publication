@@ -4,110 +4,50 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
+
 import util.GraphUtil;
 
-public abstract class OddCycle extends BaseCycle {
+public abstract class TrivialLargeCycle extends BaseCycle {
 	
-	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, FloydWarshallShortestPaths<String, DefaultEdge> floyd, int optChoice){
+	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, FloydWarshallShortestPaths<String, DefaultEdge> floyd, int optChoice) {
 		
-		if (optChoice >= 6)
-			optChoice = 3;
+		if (optChoice == 4 || optChoice >= 6)
+			optChoice = 5;   // 4 makes no sense for this method
 		
 		getRidOfEndVertices(graph, 1);
+		
+		//System.out.println("It has been added "+(graph.edgeSet().size()-edges)+" edge(s) to get rid of end vertices");
 
 		floyd = new FloydWarshallShortestPaths<>(graph);
-		
+		//System.out.println(graph.toString());
 		Transformation trans = findATransformation(floyd, graph, optChoice);
-		while (trans != null) {
+		while (trans != null){
 			String v1 = trans.v1;
-			String vi = trans.vi;
-			String vj = trans.vj;
-			if (((int)floyd.shortestDistance(trans.vj, trans.vi)) % 2 == 1) {
-				//we look for v_{i-1}
-				String viPred = null;
+			String vm = trans.vm;
+			if (((int)floyd.shortestDistance(v1, vm)) % 2 == 0)   // m - 1 is even, we will add (v_1, v_m)
+				graph.addEdge(v1, vm);
+			else {   // m - 1 is odd, we will add (v_2, v_m)
+				//we look for v_2
+				String v2 = null;
 				for (String tmpV : graph.vertexSet()){
-					if (floyd.shortestDistance(tmpV, vi) == 1 && 
-							floyd.shortestDistance(v1, tmpV) + 1 == floyd.shortestDistance(v1, vi)){
-						viPred = tmpV;
+					if (floyd.shortestDistance(v1, tmpV) == 1 && floyd.shortestDistance(tmpV, vm) + 1 == floyd.shortestDistance(v1, vm)) {
+						v2 = tmpV;
 						break;
 					}
 				}
-				graph.addEdge(viPred, vj);
-			}
-			else{
-				//we look for v_{i-2}
-				String viPredPred = null;
-				if (floyd.shortestDistance(v1, vi) < 2)
-					throw new RuntimeException("The distace is = "+floyd.shortestDistance(v1, vi)+", which is too short"+
-								". The degree of v1 is = "+graph.degreeOf(v1));
-				for (String tmpV : graph.vertexSet()){
-					if (floyd.shortestDistance(tmpV, vi) == 2 && 
-							floyd.shortestDistance(v1, tmpV) + 2 == floyd.shortestDistance(v1, vi)){
-						viPredPred = tmpV;
-						break;
-					}
-				}
-				graph.addEdge(viPredPred, vj);
+				graph.addEdge(v2, vm);
 			}
 			floyd = new FloydWarshallShortestPaths<>(graph);
 			trans = findATransformation(floyd, graph, optChoice);
 		}
 	}
-	
-	public static void anonymousTransformation(UndirectedGraph<String, DefaultEdge> graph, FloydWarshallShortestPaths<String, DefaultEdge> floyd) {
-		
-		getRidOfEndVertices(graph, 1);
 
-		floyd = new FloydWarshallShortestPaths<>(graph);
-		
-		Set<String> originalAntires = findOriginal1Antires(floyd, graph);
-		
-		Transformation trans = findATransformation(floyd, graph, originalAntires);
-		while (trans != null) {
-			String v1 = trans.v1;
-			String vi = trans.vi;
-			String vj = trans.vj;
-			if (((int)floyd.shortestDistance(trans.vj, trans.vi)) % 2 == 1) {
-				//we look for v_{i-1}
-				String viPred = null;
-				for (String tmpV : graph.vertexSet()){
-					if (floyd.shortestDistance(tmpV, vi) == 1 && 
-							floyd.shortestDistance(v1, tmpV) + 1 == floyd.shortestDistance(v1, vi)){
-						viPred = tmpV;
-						break;
-					}
-				}
-				graph.addEdge(viPred, vj);
-			}
-			else {
-				//we look for v_{i-2}
-				String viPredPred = null;
-				if (floyd.shortestDistance(v1, vi) < 2)
-					throw new RuntimeException("The distace is = "+floyd.shortestDistance(v1, vi)+", which is too short"+
-								". The degree of v1 is = "+graph.degreeOf(v1));
-				for (String tmpV : graph.vertexSet()){
-					if (floyd.shortestDistance(tmpV, vi) == 2 && 
-							floyd.shortestDistance(v1, tmpV) + 2 == floyd.shortestDistance(v1, vi)){
-						viPredPred = tmpV;
-						break;
-					}
-				}
-				graph.addEdge(viPredPred, vj);
-			}
-			floyd = new FloydWarshallShortestPaths<>(graph);
-			trans = findATransformation(floyd, graph, originalAntires);
-		}
-	}
-	
 	public static void main(String[] args) {
-		
 		/*
 		SimpleGraph<String, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
 			
@@ -309,4 +249,5 @@ public abstract class OddCycle extends BaseCycle {
 			sum += (double)elem;
 		return sum / list.size();
 	}
+
 }

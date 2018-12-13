@@ -37,16 +37,27 @@ public abstract class CollectDataAnonymization {
 			//File root = new File("./attackers-"+numberOfAttackers+"/"); 
 			File root = new File("./attackers-"+numberOfVertices+"-"+numberOfAttackers+"/"); 
 			List<File> files = getFiles(root);
-			Hashtable<String, TreeMap<Pair, List<Result>>>  data = collectDataByDensity(files);
-			computeAverage(data, numberOfVertices, numberOfAttackers);
-			//percentage[i] = computeDensityPercentage("CPA", data, densityScale, 3);
-			percentage.add(computeEdgeRemoval("CPA", data, 1));
+			Hashtable<String, TreeMap<Pair, List<Result>>> result = new Hashtable<>();
+			Hashtable<String, String> methodNames = new Hashtable();
+			for (File f : files) {
+				String fileName = f.getName();
+				String[] split = fileName.split("(-|\\.DAT)");
+				String name = split[0];
+				methodNames.put(name, name);
+			}
+			for (String name : methodNames.keySet()){
+				TreeMap<Pair, List<Result>>  data = collectDataByDensity(files, name);
+				computeAverage(data, name, numberOfVertices, numberOfAttackers);
+				//percentage[i] = computeDensityPercentage("CPA", data, densityScale, 3);
+				percentage.add(computeEdgeRemoval("CPA", data, 1));
+				
+			}
 		}
-		FileWriter latexTableWriter = new FileWriter(new File("percentage-table.tex"));
+		/*FileWriter latexTableWriter = new FileWriter(new File("percentage-table.tex"));
 		Latex.appendTableHeader(percentage, attackers, latexTableWriter);
 		Latex.appendData(percentage, attackers, latexTableWriter);
 		Latex.appendTableFooter(latexTableWriter);
-		latexTableWriter.close();
+		latexTableWriter.close();*/
 		//printTable(basis, "basis.DAT");
 		//printTable(resolving, "resolving.DAT");
 	}
@@ -179,51 +190,103 @@ public abstract class CollectDataAnonymization {
 		
 		
 	}
-	private static void computeAverage(Hashtable<String, TreeMap<Pair, List<Result>>> allData, 
+	private static void computeAverage(TreeMap<Pair, List<Result>> data, String name, 
 			int numberOfVertices, int numberOfAttackers) throws IOException {
-		for (String name : allData.keySet()){
-			String fileName = name+"Average"+"-n-"+numberOfVertices+"-att-"+numberOfAttackers+".DAT";
-			TreeMap<Pair, List<Result>> data = allData.get(name);
-			File outFile = new File(fileName);
-			BufferedWriter writer = new BufferedWriter(new FileWriter(outFile, false));
-			writer.write("#DENSITY \t TOTAL-SAMPLES \t FAILED-K \t k \t diameter \t connectivity \t successRate \t densityDistortion");
-			writer.newLine();
-			for (Pair key : data.keySet()) {
-				if (key.numberOfAttackers != numberOfAttackers) throw new IllegalArgumentException();
-				if (key.numberOfVertices != numberOfVertices) throw new IllegalArgumentException();
-				double k = 0;
-				double diameter = 0;
-				double connectivity = 0;
-				double successRate = 0;
-				double densityDistortion = 0;
-				double removedEdges = 0;
-				double removedEdgesUpperBound = 0;
-				double maximum = 0;
-				int totalFailedK = 0;
-				int totalRows = data.get(key).size();
-				for (Result r : data.get(key)){
-					if (r.k == -1) totalFailedK++;
-					else k += r.k;
-					diameter += r.diameter/totalRows;
-					connectivity += r.connectivity/totalRows;
-					successRate += r.successRate/totalRows;
-					densityDistortion += r.percetangeDensityDistortion/totalRows;
-					removedEdges += r.removedEdges/totalRows;
-					removedEdgesUpperBound += r.removedEdgesUpperBound/totalRows;
-					int n = numberOfVertices+numberOfAttackers/totalRows;
-					maximum += ((double)(n)*(n-1)*(1-r.density))/(2*totalRows);
-				}
-				double kRatio = (totalFailedK == 0)?k/totalRows:k/totalFailedK;
-				writer.write(key.density+" \t "+totalRows+" \t "+
-						totalFailedK+" \t "+kRatio+" \t "+
-						diameter+" \t "+connectivity+" \t "+
-						successRate + " \t "+densityDistortion+ 
-						" \t "+removedEdges+" \t "+removedEdgesUpperBound+
-						" \t "+maximum);
-				writer.newLine();
+		String fileName = name+"Average"+"-n-"+numberOfVertices+"-att-"+numberOfAttackers+".DAT";
+		File outFile = new File(fileName);
+		BufferedWriter writer = new BufferedWriter(new FileWriter(outFile, false));
+		writer.write("#DENSITY \t TOTAL-SAMPLES \t FAILED-K \t k \t diameter \t connectivity \t successRate \t densityDistortion");
+		writer.newLine();
+		for (Pair key : data.keySet()) {
+			if (key.numberOfAttackers != numberOfAttackers) throw new IllegalArgumentException();
+			if (key.numberOfVertices != numberOfVertices) throw new IllegalArgumentException();
+			double averageDegree = 0;
+			double k = 0;
+			double diameter = 0;
+			double connectivity = 0;
+			double successRate = 0;
+			double densityDistortion = 0;
+			double density = 0;
+			double removedEdges = 0;
+			double removedEdgesUpperBound = 0;
+			double maximum = 0;
+			int totalFailedK = 0;
+			int totalRows = data.get(key).size();
+			int n = numberOfVertices+numberOfAttackers;
+			for (Result r : data.get(key)){
+				if (r.k == -1) totalFailedK++;
+				else k += r.k;
+				diameter += r.diameter/totalRows;
+				connectivity += r.connectivity/totalRows;
+				successRate += r.successRate/totalRows;
+				densityDistortion += r.percetangeDensityDistortion/totalRows;
+				density += r.density/totalRows;
+				removedEdges += r.removedEdges/totalRows;
+				removedEdgesUpperBound += r.removedEdgesUpperBound/totalRows;
 			}
-			writer.close();
+			double originalDensity = density+densityDistortion;
+			maximum = ((double)(n)*(n-1)*(1-originalDensity)/2);
+			averageDegree = originalDensity*(n-1);
+
+			double kRatio = (totalFailedK == 0)?k/totalRows:k/totalFailedK;
+			writer.write(key.density+" \t "+totalRows+" \t "+
+					totalFailedK+" \t "+kRatio+" \t "+
+					diameter+" \t "+connectivity+" \t "+
+					successRate + " \t "+densityDistortion+ 
+					" \t "+removedEdges+" \t "+removedEdgesUpperBound+
+					" \t "+maximum+" \t "+averageDegree);
+			writer.newLine();
 		}
+		writer.close();
+	}
+
+	private static void computeAveragePerDegreeAverage(TreeMap<Pair, List<Result>> data, String name, 
+			int numberOfVertices, int numberOfAttackers) throws IOException {
+		String fileName = name+"Average-degree"+"-n-"+numberOfVertices+"-att-"+numberOfAttackers+".DAT";
+		File outFile = new File(fileName);
+		BufferedWriter writer = new BufferedWriter(new FileWriter(outFile, false));
+		writer.write("#DENSITY \t TOTAL-SAMPLES \t FAILED-K \t k \t diameter \t connectivity \t successRate \t densityDistortion");
+		writer.newLine();
+		for (Pair key : data.keySet()) {
+			if (key.numberOfAttackers != numberOfAttackers) throw new IllegalArgumentException();
+			if (key.numberOfVertices != numberOfVertices) throw new IllegalArgumentException();
+			double averageDegree = 0;
+			double k = 0;
+			double diameter = 0;
+			double connectivity = 0;
+			double successRate = 0;
+			double densityDistortion = 0;
+			double density = 0;
+			double removedEdges = 0;
+			double removedEdgesUpperBound = 0;
+			double maximum = 0;
+			int totalFailedK = 0;
+			int totalRows = data.get(key).size();
+			int n = numberOfVertices+numberOfAttackers;
+			for (Result r : data.get(key)){
+				if (r.k == -1) totalFailedK++;
+				else k += r.k;
+				diameter += r.diameter/totalRows;
+				connectivity += r.connectivity/totalRows;
+				successRate += r.successRate/totalRows;
+				densityDistortion += r.percetangeDensityDistortion/totalRows;
+				density += r.density/totalRows;
+				removedEdges += r.removedEdges/totalRows;
+				removedEdgesUpperBound += r.removedEdgesUpperBound/totalRows;
+			}
+			maximum = ((double)(n)*(n-1)*(1-density));
+			averageDegree = density*(n-1);
+			
+			double kRatio = (totalFailedK == 0)?k/totalRows:k/totalFailedK;
+			writer.write(key.density+" \t "+totalRows+" \t "+
+					totalFailedK+" \t "+kRatio+" \t "+
+					diameter+" \t "+connectivity+" \t "+
+					successRate + " \t "+densityDistortion+ 
+					" \t "+removedEdges+" \t "+removedEdgesUpperBound+
+					" \t "+maximum);
+			writer.newLine();
+		}
+		writer.close();
 	}
 
 	private static double[] computeDensityPercentage(String name, Hashtable<String, TreeMap<Pair, List<Result>>> allData, 
@@ -248,10 +311,9 @@ public abstract class CollectDataAnonymization {
 		return result;
 	}
 
-	private static TreeMap<Double, Double> computeEdgeRemoval(String name, Hashtable<String, TreeMap<Pair, List<Result>>> allData, 
+	private static TreeMap<Double, Double> computeEdgeRemoval(String name, TreeMap<Pair, List<Result>> data, 
 			int significantDigits) throws IOException {
 		TreeMap<Double, Double> percentage = new TreeMap<>();
-		TreeMap<Pair, List<Result>> data = allData.get(name);
 		for (Pair key : data.keySet()) {
 			int totalRows = data.get(key).size();
 			double densityDistortion = 0;
@@ -269,8 +331,9 @@ public abstract class CollectDataAnonymization {
 		return percentage;
 	}
 
-	private static Hashtable<String, TreeMap<Pair, List<Result>>> collectDataByDensity(List<File> files) throws IOException {
-		Hashtable<String, TreeMap<Pair, List<Result>>> result = new Hashtable<>();
+	private static TreeMap<Pair, List<Result>> collectDataByDensity(List<File> files, String methodName) throws IOException {
+		TreeMap<Pair, List<Result>> result = new TreeMap();
+		//Hashtable<String, TreeMap<Pair, List<Result>>> result = new Hashtable<>();
 		int numberOfVertices;
 		int numberOfAttackers;
 		double k;
@@ -285,9 +348,7 @@ public abstract class CollectDataAnonymization {
 			String fileName = f.getName();
 			String[] split = fileName.split("(-|\\.DAT)");
 			String name = split[0];
-			if (!result.containsKey(name))
-				result.put(name, new TreeMap<Pair, List<Result>>());
-			TreeMap<Pair, List<Result>> resultingTree = result.get(name);
+			if (!name.equals(methodName)) continue;
 			numberOfVertices = Integer.parseInt(split[2]);
 			double expectedDensity = Double.parseDouble(split[4]);//this is the expected density
 			numberOfAttackers = Integer.parseInt(split[6]);
@@ -304,7 +365,8 @@ public abstract class CollectDataAnonymization {
 							" while we were expecting +"+numberOfVertices+" original vertices plus "+numberOfAttackers+" attackers");
 				density = Double.parseDouble(data[3]);
 				//now we look for the closer scale to realDensity
-				double percetangeDensityDistortion = density - expectedDensity;
+				//double percetangeDensityDistortion = density - expectedDensity;
+				double percetangeDensityDistortion = Double.parseDouble(data[7]);
 				diameter = Double.parseDouble(data[4]);
 				connectivity = Double.parseDouble(data[5]);
 				successRate = Double.parseDouble(data[6]);
@@ -321,10 +383,10 @@ public abstract class CollectDataAnonymization {
 				//Pair newPair = new Pair(numberOfVertices, numberOfAttackers, expectedDensity);
 				Result row = new Result(k, density, diameter, connectivity, successRate, percetangeDensityDistortion, 
 						expectedDensity, removedEdges, removedEdgesUpperBound);
-				if (!resultingTree.containsKey(newPair)){
-					resultingTree.put(newPair, new LinkedList<Result>());
+				if (!result.containsKey(newPair)){
+					result.put(newPair, new LinkedList<Result>());
 				}
-				resultingTree.get(newPair).add(row);
+				result.get(newPair).add(row);
 				line = reader.readLine();
 				totalRows++;
 			}

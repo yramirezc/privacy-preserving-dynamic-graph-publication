@@ -3,106 +3,60 @@ package anonymization;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
-
+import java.util.TreeMap;
+import java.util.Map;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
+
 import util.GraphUtil;
 
-public abstract class OddCycle extends BaseCycle {
+public abstract class MinTriangles extends BaseCycle {
 	
 	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, FloydWarshallShortestPaths<String, DefaultEdge> floyd, int optChoice){
-		
-		if (optChoice >= 6)
-			optChoice = 3;
+		int edges = graph.edgeSet().size();
 		
 		getRidOfEndVertices(graph, 1);
+		
+		System.out.println("It has been added "+(graph.edgeSet().size()-edges)+" edge(s) to get rid of end vertices");
 
 		floyd = new FloydWarshallShortestPaths<>(graph);
+		floyd.getDiameter();   // This call is placed here so all necessary computations are performed before comparisons using shortestDistance start.
 		
 		Transformation trans = findATransformation(floyd, graph, optChoice);
-		while (trans != null) {
+		while (trans != null){
 			String v1 = trans.v1;
-			String vi = trans.vi;
-			String vj = trans.vj;
-			if (((int)floyd.shortestDistance(trans.vj, trans.vi)) % 2 == 1) {
-				//we look for v_{i-1}
-				String viPred = null;
-				for (String tmpV : graph.vertexSet()){
-					if (floyd.shortestDistance(tmpV, vi) == 1 && 
-							floyd.shortestDistance(v1, tmpV) + 1 == floyd.shortestDistance(v1, vi)){
-						viPred = tmpV;
-						break;
+			TreeMap<Double, String> resolvables = trans.resolvables;
+			
+			boolean lastAdditionCoveredTwoVerts = false;   // true if both v_k and v_{k-1} are 1-resolvable, as the edge v_{k-2}v_k makes then both stop being 1-resolvable
+						
+			for (Map.Entry<Double, String> entry : resolvables.descendingMap().entrySet())
+				if (lastAdditionCoveredTwoVerts)   // Nothing to do here, just skip it
+					lastAdditionCoveredTwoVerts = false;
+				else {
+					// look for v_{k-1} and v_{k-2}
+					String vkPred = null, vkPred2 = null;
+					for (String tmpV : graph.vertexSet()){
+						if (floyd.shortestDistance(tmpV, entry.getValue()) == 1 && 
+								floyd.shortestDistance(v1, tmpV) + 1 == floyd.shortestDistance(v1, entry.getValue()))
+							vkPred = tmpV;
+						if (floyd.shortestDistance(tmpV, entry.getValue()) == 2 && 
+								floyd.shortestDistance(v1, tmpV) + 2 == floyd.shortestDistance(v1, entry.getValue()))
+							vkPred2 = tmpV;
+						if (vkPred != null && vkPred2 != null)
+							break;
 					}
+					
+					if (resolvables.containsValue(vkPred))
+						lastAdditionCoveredTwoVerts = true;
+					
+					graph.addEdge(vkPred2, entry.getValue());
 				}
-				graph.addEdge(viPred, vj);
-			}
-			else{
-				//we look for v_{i-2}
-				String viPredPred = null;
-				if (floyd.shortestDistance(v1, vi) < 2)
-					throw new RuntimeException("The distace is = "+floyd.shortestDistance(v1, vi)+", which is too short"+
-								". The degree of v1 is = "+graph.degreeOf(v1));
-				for (String tmpV : graph.vertexSet()){
-					if (floyd.shortestDistance(tmpV, vi) == 2 && 
-							floyd.shortestDistance(v1, tmpV) + 2 == floyd.shortestDistance(v1, vi)){
-						viPredPred = tmpV;
-						break;
-					}
-				}
-				graph.addEdge(viPredPred, vj);
-			}
+			
 			floyd = new FloydWarshallShortestPaths<>(graph);
+			floyd.getDiameter();   // This call is placed here so all necessary computations are performed before comparisons using shortestDistance start.
 			trans = findATransformation(floyd, graph, optChoice);
-		}
-	}
-	
-	public static void anonymousTransformation(UndirectedGraph<String, DefaultEdge> graph, FloydWarshallShortestPaths<String, DefaultEdge> floyd) {
-		
-		getRidOfEndVertices(graph, 1);
-
-		floyd = new FloydWarshallShortestPaths<>(graph);
-		
-		Set<String> originalAntires = findOriginal1Antires(floyd, graph);
-		
-		Transformation trans = findATransformation(floyd, graph, originalAntires);
-		while (trans != null) {
-			String v1 = trans.v1;
-			String vi = trans.vi;
-			String vj = trans.vj;
-			if (((int)floyd.shortestDistance(trans.vj, trans.vi)) % 2 == 1) {
-				//we look for v_{i-1}
-				String viPred = null;
-				for (String tmpV : graph.vertexSet()){
-					if (floyd.shortestDistance(tmpV, vi) == 1 && 
-							floyd.shortestDistance(v1, tmpV) + 1 == floyd.shortestDistance(v1, vi)){
-						viPred = tmpV;
-						break;
-					}
-				}
-				graph.addEdge(viPred, vj);
-			}
-			else {
-				//we look for v_{i-2}
-				String viPredPred = null;
-				if (floyd.shortestDistance(v1, vi) < 2)
-					throw new RuntimeException("The distace is = "+floyd.shortestDistance(v1, vi)+", which is too short"+
-								". The degree of v1 is = "+graph.degreeOf(v1));
-				for (String tmpV : graph.vertexSet()){
-					if (floyd.shortestDistance(tmpV, vi) == 2 && 
-							floyd.shortestDistance(v1, tmpV) + 2 == floyd.shortestDistance(v1, vi)){
-						viPredPred = tmpV;
-						break;
-					}
-				}
-				graph.addEdge(viPredPred, vj);
-			}
-			floyd = new FloydWarshallShortestPaths<>(graph);
-			trans = findATransformation(floyd, graph, originalAntires);
 		}
 	}
 	
@@ -110,7 +64,6 @@ public abstract class OddCycle extends BaseCycle {
 		
 		/*
 		SimpleGraph<String, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
-			
 		graph.addVertex("v1");
 		graph.addVertex("vi-1");
 		graph.addVertex("vi");
@@ -136,7 +89,7 @@ public abstract class OddCycle extends BaseCycle {
 		
 		//graph.addEdge("vi+1", "vi+2");
 		graph.addEdge("vi+1", "x");
-		graph.addEdge("x", "vi+2");	
+		graph.addEdge("x", "vi+2");
 		
 		graph.addEdge("vi+2", "vj");
 		graph.addEdge("vj", "vj+1");
@@ -156,7 +109,6 @@ public abstract class OddCycle extends BaseCycle {
 		FloydWarshallShortestPaths<String, DefaultEdge> floyd = new FloydWarshallShortestPaths<>(graph);
 		anonymizeGraph(graph, floyd);
 		System.out.println(graph.toString());
-		
 		
 		SimpleGraph<String, DefaultEdge> graph1 = new SimpleGraph<>(DefaultEdge.class);
 		
@@ -227,7 +179,6 @@ public abstract class OddCycle extends BaseCycle {
 		ArrayList<Integer> numbersAddedEdgesFirst = new ArrayList<Integer>();
 		ArrayList<Integer> numbersAddedEdgesMinEcc = new ArrayList<Integer>();
 		ArrayList<Integer> numbersAddedEdgesMaxEcc = new ArrayList<Integer>();
-		ArrayList<Integer> numbersAddedEdgesRandom = new ArrayList<Integer>();
 		
 		for (int i = 0; i < 500; i++){
 			
@@ -262,7 +213,6 @@ public abstract class OddCycle extends BaseCycle {
 			
 			SimpleGraph<String, DefaultEdge> clone1GraphShuffledVerts = GraphUtil.cloneGraph(graphShuffledVerts);
 			SimpleGraph<String, DefaultEdge> clone2GraphShuffledVerts = GraphUtil.cloneGraph(graphShuffledVerts);
-			SimpleGraph<String, DefaultEdge> clone3GraphShuffledVerts = GraphUtil.cloneGraph(graphShuffledVerts);
 						
 			System.out.println("Original graph:");
 			System.out.println(graphShuffledVerts.toString());
@@ -285,28 +235,12 @@ public abstract class OddCycle extends BaseCycle {
 			System.out.println("Graph anonymized prioritizing maximum eccentriciy values:");
 			System.out.println(clone2GraphShuffledVerts.toString());
 			
-			floydShuffledVerts = new FloydWarshallShortestPaths<>(clone3GraphShuffledVerts);
-			anonymizeGraph(clone3GraphShuffledVerts, floydShuffledVerts, 3);
-			numbersAddedEdgesRandom.add(clone3GraphShuffledVerts.edgeSet().size() - origEdgeCount);
-			System.out.println("Graph anonymized taking random transformation:");
-			System.out.println(clone3GraphShuffledVerts.toString());
-			
 			System.out.println();
 		}
 		System.out.println("Numbers of added edges taking first transformation found:        " + numbersAddedEdgesFirst.toString());
-		System.out.println("   Average: " + avg(numbersAddedEdgesFirst));
 		System.out.println("Numbers of added edges prioritizing minimum eccentricity values: " + numbersAddedEdgesMinEcc.toString());
-		System.out.println("   Average: " + avg(numbersAddedEdgesMinEcc));
 		System.out.println("Numbers of added edges prioritizing maximum eccentricity values: " + numbersAddedEdgesMaxEcc.toString());
-		System.out.println("   Average: " + avg(numbersAddedEdgesMaxEcc));
-		System.out.println("Numbers of added edges taking random transformation:             " + numbersAddedEdgesRandom.toString());
-		System.out.println("   Average: " + avg(numbersAddedEdgesRandom));
+		
 	}
-	
-	static double avg(List<Integer> list) {
-		double sum = 0d;
-		for (double elem : list)
-			sum += (double)elem;
-		return sum / list.size();
-	}
+
 }

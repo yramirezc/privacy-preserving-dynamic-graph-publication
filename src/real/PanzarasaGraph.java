@@ -45,6 +45,7 @@ public class PanzarasaGraph extends SimpleGraph<String, DefaultEdge>{
 				if (!this.containsVertex(vertices[1])) this.addVertex(vertices[1]);
 				this.addEdge(vertices[0], vertices[1]);
 			}
+			reader.close();
 		} catch (FileNotFoundException e1) {
 			e1.printStackTrace();
 		}catch (IOException e2) {
