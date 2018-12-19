@@ -54,6 +54,8 @@ public class TreeDimension {
 //	}
 
 	public static void main(String[] args) throws NumberFormatException, IOException {
+		File f = new File("./states");
+		if (!f.exists()) f.mkdir();
 		mainParallel(Integer.parseInt(args[0]));
 	}
 
