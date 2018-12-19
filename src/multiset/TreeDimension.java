@@ -65,7 +65,7 @@ public class TreeDimension {
 			BaseFinder[] finders = new BaseFinder[estimatedUpperBound-estimatedLowerBound+1];
 			Future[] finderStatus = new Future[estimatedUpperBound-estimatedLowerBound+1]; 
 			for (int i = estimatedLowerBound; i<= estimatedUpperBound; i++) {
-				finders[i-estimatedLowerBound] = new BaseFinder(tree, i);
+				finders[i-estimatedLowerBound] = new BaseFinder(tree, i, degree);
 				finderStatus[i-estimatedLowerBound]  = executor.submit(finders[i-estimatedLowerBound]);
 			}
 			Print.print("Waiting for threats to finish");
@@ -206,11 +206,13 @@ public class TreeDimension {
 
 		SimpleGraph<String, DefaultEdge> tree;
 		int baseSize;
+		int degree;
 		Set<Set<String>> result;
 		
-		public BaseFinder(SimpleGraph<String, DefaultEdge> tree, int baseSize) {
+		public BaseFinder(SimpleGraph<String, DefaultEdge> tree, int baseSize, int degree) {
 			this.tree = tree;
 			this.baseSize = baseSize;
+			this.degree = degree;
 			this.result = new HashSet<>();
 		}
 
@@ -227,20 +229,15 @@ public class TreeDimension {
 				Set<String> set = powersetEnum.nextElement();
 				if (set.size() > minimum) continue;
 				if (Resolving.isMultisetResolving(set, tree, floyd)){
-					if (set.size() == minimum) {
-						Print.print("Another optimal of size "+set.size()+" has been found:" + set.toString());
-						result.add(set);
-					}
-					if (set.size() < minimum) {
-						Print.print("A NEW optimal of size "+set.size()+" has been found:" + set.toString());
-						result = new HashSet<>();
-						result.add(set);
-						minimum = set.size();
+					Print.print("Another optimal of size "+set.size()+" has been found:" + set.toString());
+					result.add(set);
+					result = removeIsomorphicResults(result, "1", floyd);
+					if (result.size() > degree) {
+						Print.print("Finished looking for bases of size = "+baseSize);
+						return;
 					}
 				}
 			}
-			result = removeIsomorphicResults(result, "1", floyd);
-			Print.print("Finished looking for bases of size = "+baseSize);
 		}
 
 		public Set<Set<String>> bases(){
