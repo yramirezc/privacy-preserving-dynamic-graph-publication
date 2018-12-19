@@ -1,8 +1,18 @@
 package multiset;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.PrintStream;
+import java.io.Reader;
+import java.io.Writer;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Set;
@@ -43,11 +53,11 @@ public class TreeDimension {
 //		System.out.println("End");
 //	}
 
-	public static void main(String[] args) throws FileNotFoundException {
+	public static void main(String[] args) throws NumberFormatException, IOException {
 		mainParallel(Integer.parseInt(args[0]));
 	}
 
-	public static void mainParallel(int degree) throws FileNotFoundException {
+	public static void mainParallel(int degree) throws NumberFormatException, IOException {
 
 		System.out.println("Starting for degree = "+degree);
 		System.setOut(new PrintStream(new File("out-"+degree+".txt")));
@@ -65,7 +75,7 @@ public class TreeDimension {
 			BaseFinder[] finders = new BaseFinder[estimatedUpperBound-estimatedLowerBound+1];
 			Future[] finderStatus = new Future[estimatedUpperBound-estimatedLowerBound+1]; 
 			for (int i = estimatedLowerBound; i<= estimatedUpperBound; i++) {
-				finders[i-estimatedLowerBound] = new BaseFinder(tree, i, degree);
+				finders[i-estimatedLowerBound] = new BaseFinder(tree, i, degree, depth);
 				finderStatus[i-estimatedLowerBound]  = executor.submit(finders[i-estimatedLowerBound]);
 			}
 			Print.print("Waiting for threats to finish");
@@ -156,10 +166,11 @@ public class TreeDimension {
 		return tree;
 	}
 
-	public static Set<Set<String>> findMultisetBases(SimpleGraph<String, DefaultEdge> tree, int estimatedLowerBound, int estimatedUpperBound) {
+	public static Set<Set<String>> findMultisetBases(SimpleGraph<String, DefaultEdge> tree, int estimatedLowerBound, 
+			int estimatedUpperBound) {
 		FloydWarshallShortestPaths<String, DefaultEdge> floyd = new FloydWarshallShortestPaths<>(tree);
 		Set<String> vertices = tree.vertexSet();
-		PowerSetEnum<String> powersetEnum = new PowerSetEnum<>(vertices, estimatedLowerBound, estimatedUpperBound);
+		PowerSetEnum<String> powersetEnum = new PowerSetEnum<>(vertices, estimatedLowerBound, estimatedUpperBound, 0);
 		
 		Set<Set<String>> result = new HashSet<>();
 		int minimum = vertices.size();
@@ -207,13 +218,29 @@ public class TreeDimension {
 		SimpleGraph<String, DefaultEdge> tree;
 		int baseSize;
 		int degree;
+		int startingSeedForEnumerator;
 		Set<Set<String>> result;
+		String fileNameEnum;
+		String fileNameResult;
 		
-		public BaseFinder(SimpleGraph<String, DefaultEdge> tree, int baseSize, int degree) {
+		public BaseFinder(SimpleGraph<String, DefaultEdge> tree, int baseSize, int degree, int depth) throws NumberFormatException, IOException {
 			this.tree = tree;
 			this.baseSize = baseSize;
 			this.degree = degree;
-			this.result = new HashSet<>();
+			fileNameEnum = "./states/depth-"+depth+"-degree-"+degree+"-baseSize-"+baseSize+".txt";
+			fileNameResult = "./states/depth-"+depth+"-degree-"+degree+"-baseSize-"+baseSize+".obj";
+			File f = new File(fileNameEnum);
+			if (!f.exists()) {
+				Writer out = new FileWriter(fileNameEnum, false);
+				out.write("0");
+				out.close();
+			}
+			f = new File(fileNameResult);
+			if (!f.exists()) {
+				ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(f));
+				out.writeObject(new HashSet<>());
+				out.close();
+			}
 		}
 
 		@Override
@@ -221,8 +248,29 @@ public class TreeDimension {
 			Print.print("Looking bases of size = "+baseSize);
 			FloydWarshallShortestPaths<String, DefaultEdge> floyd = new FloydWarshallShortestPaths<>(tree);
 			Set<String> vertices = tree.vertexSet();
-			PowerSetEnum<String> powersetEnum = new PowerSetEnum<>(vertices, baseSize, baseSize);
+			PowerSetEnum<String> powersetEnum = new PowerSetEnum<>(vertices, baseSize, baseSize, startingSeedForEnumerator);
+			try {
+				BufferedReader br = new BufferedReader(new FileReader(new File(fileNameEnum)));
+				this.startingSeedForEnumerator = Integer.parseInt(br.readLine());
+				br.close();
+				System.out.println("Re-starting with seed: "+startingSeedForEnumerator+
+						" in file name "+fileNameResult);
+				ObjectInputStream input = new ObjectInputStream(new FileInputStream(new File(fileNameResult)));
+				result = (HashSet)input.readObject();
+				input.close();
+				System.out.println("Re-starting with bases in file name "+fileNameResult);
+				for (Set<String> base : result) {
+					System.out.println(base.toString());
+				}
+			} catch (ClassNotFoundException | IOException e) {
+				// TODO Auto-generated catch block
+				
+				e.printStackTrace();
+			}
 			
+			int waitingPeriod = 1000;
+			int rounds = 0;
+
 			int minimum = vertices.size();
 			while (powersetEnum.hasMoreElements()) {
 			//for (Set<String> set : powerset) {
@@ -236,6 +284,23 @@ public class TreeDimension {
 						Print.print("Finished looking for bases of size = "+baseSize);
 						return;
 					}
+				}
+				rounds++;
+				if (rounds == waitingPeriod) {
+					ObjectOutputStream outResult;
+					try {
+						startingSeedForEnumerator += rounds;
+						outResult = new ObjectOutputStream(new FileOutputStream(new File(fileNameResult)));
+						outResult.writeObject(result);
+						outResult.close();
+						Writer outenum = new FileWriter(fileNameEnum, false);
+						outenum.write(startingSeedForEnumerator+"");
+						outenum.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					rounds = 0;
 				}
 			}
 		}

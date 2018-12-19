@@ -18,7 +18,7 @@ public class PowerSetEnum<T> implements Enumeration<Set<T>>{
 	ArrayList<T> set;
 	
 	
-	public PowerSetEnum(Set<T> originalSet, int lowerBound, int upperBound){
+	public PowerSetEnum(Set<T> originalSet, int lowerBound, int upperBound, int startingNumber){
 		this.set = new ArrayList<T>(originalSet.size());
 		this.set.addAll(originalSet);
 		this.currentPos = 0;
@@ -28,7 +28,7 @@ public class PowerSetEnum<T> implements Enumeration<Set<T>>{
 		for (int i = lowerBound; i <= upperBound; i++) {
 			this.maxElements += Combinatory.comb(originalSet.size(), i).longValue();
 		}
-		elementsConsumed = 0;
+		elementsConsumed = startingNumber;
 	}
 
 	@Override
@@ -63,18 +63,18 @@ public class PowerSetEnum<T> implements Enumeration<Set<T>>{
 		 mySet.add(2);
 		 mySet.add(3);
 		 mySet.add(4);
-		 mySet.add(5);
-		 mySet.add(6);
-		 mySet.add(7);
-		 mySet.add(8);
-		 mySet.add(9);
+//		 mySet.add(5);
+//		 mySet.add(6);
+//		 mySet.add(7);
+//		 mySet.add(8);
+//		 mySet.add(9);
 //		 mySet.add(10);
 //		 mySet.add(11);
 //		 mySet.add(12);
 //		 mySet.add(13);
 //		 mySet.add(14);
 //		 mySet.add(15);
-		 PowerSetEnum<Integer> g = new PowerSetEnum<>(mySet, 7, 9);
+		 PowerSetEnum<Integer> g = new PowerSetEnum<>(mySet, 0, 4, 3);
 		 while (g.hasMoreElements()) {
 		     System.out.println(g.nextElement().toString());
 		 }
