@@ -391,7 +391,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 							 */
 							//if (useErrorCorrectingFingerprints)
 								//tmpFingerprint = codec.correctedCodeWord(tmpFingerprint);
-							if (tmpFingerprint.equals(originalFingerprints.get(victim))) {
+							if (tmpFingerprint.equals(originalFingerprints.get(victim - attackerCount))) {
 								cardinalityOfTheSubset++;
 								if (victim == Integer.parseInt(vertex))
 									victimInsideSubset = true;

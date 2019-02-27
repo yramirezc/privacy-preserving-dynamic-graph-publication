@@ -89,7 +89,7 @@ public class ExperimentsRobustSybils {
 		Writer outAdjTransformationWalkBased = new FileWriter(fileNameOutAdjTransformationWalkBased+".DAT", true);
 		
 		//int percentages[] = new int[] {1, 5, 10, 25, 50};
-		int percentages[] = new int[] {5, 10, 25};
+		int percentages[] = new int[] {1, 5, 10, 15, 20, 25};
 		String[] fileNamesOutsRandomPerturbations = new String[percentages.length];
 		Writer[] outsRandomPerturbations = new Writer[percentages.length];
 		for (int pct = 0; pct < percentages.length; pct++) {
