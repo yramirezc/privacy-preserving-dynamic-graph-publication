@@ -54,13 +54,21 @@ public class TreeDimension {
 //	}
 
 	public static void main(String[] args) throws NumberFormatException, IOException {
+		double ini = System.currentTimeMillis();
 		File f = new File("./states");
 		if (!f.exists()) f.mkdir();
 		mainParallel(Integer.parseInt(args[0]));
+		double end = System.currentTimeMillis();
+		double milliSeconds = end-ini;
+		double seconds = milliSeconds/1000;
+		double minutes = seconds/60;
+		double hours = minutes/60; 
+		Print.print("Reaching the end took "+hours + " hours");
 	}
 
 	public static void mainParallel(int degree) throws NumberFormatException, IOException {
-
+		
+		
 		System.out.println("Starting for degree = "+degree);
 		System.setOut(new PrintStream(new File("out-"+degree+".txt")));
 		int estimatedLowerBound = 1; 
