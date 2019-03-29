@@ -5,7 +5,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.lang.reflect.Method;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -13,14 +12,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-
-import javax.swing.DebugGraphics;
 import org.jgrapht.Graphs;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.VertexFactory;
@@ -598,8 +594,12 @@ public class GraphUtil {
 		}
 	}
 
-	public static UndirectedGraph<String, DefaultEdge> transformRealSocNetIntoOurFormat(
-			UndirectedGraph<String, DefaultEdge> panzarasaGraph, int numberOfattackers, 
+	/* YR (12/03/2019) Originally, this method was called transformRealSocNetIntoOurFormat.
+	   We have changed the name to better reflect what it does and the fact that it may 
+	   be called on any graph, not only real social graphs */ 
+	
+	public static UndirectedGraph<String, DefaultEdge> shiftAndShuffleVertexIds(
+			UndirectedGraph<String, DefaultEdge> originalGraph, int numberOfattackers, 
 			Set<String> verticesToKeep) {
 		UndirectedGraph<String, DefaultEdge> result = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
 		SecureRandom random = new SecureRandom();
@@ -620,15 +620,42 @@ public class GraphUtil {
 		for (String v1 : verticesToKeep){
 			for (String v2 : verticesToKeep){
 				//if (v1.equals(v2)) continue;
-				if (panzarasaGraph.containsEdge(v1,  v2))
+				if (originalGraph.containsEdge(v1,  v2))
 					result.addEdge(randomMapping.get(v1), randomMapping.get(v2));
 			}
 		}
 		return result;
 	}
 	
-	public static UndirectedGraph<String, DefaultEdge> sampleRealSocialNetwork(
-			UndirectedGraph<String, DefaultEdge> realSocNetGraph, int numberOfattackers, 
+	public static Set<String> getStratifiedSamplingPoolFromDegreeSequence(UndirectedGraph<String, DefaultEdge> graph, int minOrder, int maxOrder, boolean ascendingOrder) {
+		
+		Set<String> pool = new HashSet<>();
+		
+		if (minOrder <= maxOrder) {
+			
+			DegreeDistributionComputer distrComp = new DegreeDistributionComputer();
+			Map<Integer, Set<String>> distr = distrComp.computeDistributionAsSets(graph);
+			
+			ArrayList<Integer> degrees = new ArrayList<>();
+			for (String v : graph.vertexSet())
+				degrees.add(graph.degreeOf(v));
+			if (ascendingOrder)
+				Collections.sort(degrees);
+			else
+				Collections.sort(degrees, Collections.reverseOrder());
+			
+			int degreeAtMinOrder = degrees.get(minOrder);
+			int degreeAtMaxOrder = degrees.get(maxOrder);
+			for (int deg = degreeAtMinOrder; (ascendingOrder)? (deg <= degreeAtMaxOrder) : (deg >= degreeAtMaxOrder); deg += (ascendingOrder)? 1 : -1)
+				if (distr.keySet().contains(deg))
+					pool.addAll(distr.get(deg));
+		}
+		
+		return pool;
+	}
+	
+	public static UndirectedGraph<String, DefaultEdge> sampleSubgraph(
+			UndirectedGraph<String, DefaultEdge> originalGraph, int numberOfattackers, 
 			Set<String> verticesToKeep, int upperBoundVertsToKeep) {
 		
 		UndirectedGraph<String, DefaultEdge> result = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
@@ -659,7 +686,7 @@ public class GraphUtil {
 		
 		for (String v1 : sampledVertsToKeep){
 			for (String v2 : sampledVertsToKeep){
-				if (realSocNetGraph.containsEdge(v1, v2))
+				if (originalGraph.containsEdge(v1, v2))
 					result.addEdge(randomMapping.get(v1), randomMapping.get(v2));
 			}
 		}
@@ -844,26 +871,59 @@ public class GraphUtil {
 	}
 	
 	// This implementation modifies the graph received as parameter
+	
+//	public static Set<String> greedyMaxIndependentSet(UndirectedGraph<String, DefaultEdge> graph) {
+//		
+//		boolean foundNonIsolated = false;
+//		
+//		// Main step, iteratively find minimum degree non-isolated vertex and remove all its neighbors
+//		do {
+//			foundNonIsolated = false;
+//			int minDegree = Integer.MAX_VALUE;
+//			String vertMinDegree = "";   // This will be updated at least in the first iteration, since minDegree was initialized with a value greater than any possible value in the graph
+//			for (String v : graph.vertexSet())
+//				if (graph.degreeOf(v) > 0 && graph.degreeOf(v) < minDegree) {
+//					foundNonIsolated = true;
+//					minDegree = graph.degreeOf(v);
+//					vertMinDegree = v;
+//				}
+//			if (foundNonIsolated) {
+//				List<String> neighbors = Graphs.neighborListOf(graph, vertMinDegree);
+//				for (String n : neighbors)
+//					graph.removeVertex(n);
+//			}	
+//		} while (foundNonIsolated);
+//		
+//		return graph.vertexSet();
+//	}
+	
 	public static Set<String> greedyMaxIndependentSet(UndirectedGraph<String, DefaultEdge> graph) {
 		
+		SecureRandom random = new SecureRandom();
 		boolean foundNonIsolated = false;
 		
 		// Main step, iteratively find minimum degree non-isolated vertex and remove all its neighbors
 		do {
 			foundNonIsolated = false;
 			int minDegree = Integer.MAX_VALUE;
-			String vertMinDegree = "";   // This will be updated at least in the first iteration, since minDegree was initialized with a value greater than any possible value in the graph
+			ArrayList<String> vertsMinDegree = new ArrayList<>();   // This will be updated at least in the first iteration, since minDegree was initialized with a value greater than any possible value in the graph
 			for (String v : graph.vertexSet())
 				if (graph.degreeOf(v) > 0 && graph.degreeOf(v) < minDegree) {
 					foundNonIsolated = true;
 					minDegree = graph.degreeOf(v);
-					vertMinDegree = v;
+					vertsMinDegree = new ArrayList<>();
+					vertsMinDegree.add(v);
 				}
+				else if (graph.degreeOf(v) > 0 && graph.degreeOf(v) == minDegree)  
+					vertsMinDegree.add(v);
+
 			if (foundNonIsolated) {
-				List<String> neighbors = Graphs.neighborListOf(graph, vertMinDegree);
+				String chosenVertMinDeg = vertsMinDegree.get(random.nextInt(vertsMinDegree.size()));   // This randomization step aims to generate different outputs in different runs
+				List<String> neighbors = Graphs.neighborListOf(graph, chosenVertMinDeg);
 				for (String n : neighbors)
 					graph.removeVertex(n);
-			}	
+			}
+			
 		} while (foundNonIsolated);
 		
 		return graph.vertexSet();

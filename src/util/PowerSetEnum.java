@@ -49,35 +49,9 @@ public class PowerSetEnum<T> implements Enumeration<Set<T>>{
 				tmpPos = tmpPos/2;
 			}
 			currentPos++;
-		}while (result.size() < lowerBound || result.size() > upperBound);
+		} while (result.size() < lowerBound || result.size() > upperBound);
 		elementsConsumed++;
 		return result;
-	}
-	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
-		Set<Integer> mySet = new HashSet<Integer>();
-		 mySet.add(1);
-		 mySet.add(2);
-		 mySet.add(3);
-		 mySet.add(4);
-//		 mySet.add(5);
-//		 mySet.add(6);
-//		 mySet.add(7);
-//		 mySet.add(8);
-//		 mySet.add(9);
-//		 mySet.add(10);
-//		 mySet.add(11);
-//		 mySet.add(12);
-//		 mySet.add(13);
-//		 mySet.add(14);
-//		 mySet.add(15);
-		 PowerSetEnum<Integer> g = new PowerSetEnum<>(mySet, 0, 4, 3);
-		 while (g.hasMoreElements()) {
-		     System.out.println(g.nextElement().toString());
-		 }
 	}
 	
 }
