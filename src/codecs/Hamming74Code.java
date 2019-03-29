@@ -133,16 +133,4 @@ public class Hamming74Code extends LinearCode {
 		}
 	}
 	
-	public static void main(String [] args) {
-		Hamming74Code codec = new Hamming74Code();
-		System.out.println("Encoding 0100: " + codec.encode("0100"));
-		System.out.println("Decoding 0100011: " + codec.decode("0100011"));
-		System.out.println("Decoding 1100011: " + codec.decode("1100011"));
-		System.out.println("Encoding 0011: " + codec.encode("0011"));
-		System.out.println("Decoding 0011011: " + codec.decode("0011011"));
-		System.out.println("Encoding 01000011: " + codec.encode("01000011"));
-		System.out.println("Decoding 01000110011011: " + codec.decode("01000110011011"));
-		System.out.println("Decoding 11000110010011: " + codec.decode("11000110010011"));
-		System.out.println("Encoding 0100001101: " + codec.encode("0100001101"));
-	}
 }
