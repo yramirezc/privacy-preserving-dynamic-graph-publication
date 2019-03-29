@@ -237,8 +237,4 @@ public class OriginalWalkBasedAttackSimulator extends SybilAttackSimulator {
 		return result;
 	}
 	
-	public static void main(String[] args) {
-		
-	}
-
 }

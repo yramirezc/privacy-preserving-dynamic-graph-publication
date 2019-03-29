@@ -26,7 +26,7 @@ import org.jgrapht.graph.SimpleGraph;
 import anonymization.AdjacencyAnonymizer;
 import anonymization.OddCycle;
 import anonymization.ShortSingleCycle;
-import anonymization.TrivialLargeCycle;
+import anonymization.LargeSingleCycle;
 import anonymization.BaseCycle;
 import anonymization.ClusteringBasedAnonymizer;
 import anonymization.DegreeAnonymityLiuTerzi;
@@ -40,7 +40,7 @@ import util.Statistics;
 
 public class AttackThreeMethod {
 	
-	public static int getEdgeNum(int vexnum , double density){
+	public static int getEdgeNum(int vexnum , double density) {
 		return (int)(density*vexnum*(vexnum-1)/2);
 	}
 	
@@ -78,16 +78,16 @@ public class AttackThreeMethod {
 //		Writer outShortSingleCycleCutBased = new FileWriter("ShortSingleCycle-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers+".DAT", true);
 //		Writer outShortSingleCycleRandomWalkBased = new FileWriter("ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers+".DAT", true);
 //		Writer outShortSingleCycleRandomCutBased = new FileWriter("ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers+".DAT", true);
-//		Writer outTrivialWalkBased = new FileWriter("ShortSingleCycle-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers+".DAT", true);
-//		Writer outTrivialCutBased = new FileWriter("ShortSingleCycle-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers+".DAT", true);
-//		Writer outTrivialRandomWalkBased = new FileWriter("ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers+".DAT", true);
-//		Writer outTrivialRandomCutBased = new FileWriter("ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers+".DAT", true);
+//		Writer outLargeSingleCycleWalkBased = new FileWriter("ShortSingleCycle-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers+".DAT", true);
+//		Writer outLargeSingleCycleCutBased = new FileWriter("ShortSingleCycle-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers+".DAT", true);
+//		Writer outLargeSingleCycleRandomWalkBased = new FileWriter("ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers+".DAT", true);
+//		Writer outLargeSingleCycleRandomCutBased = new FileWriter("ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers+".DAT", true);
 		//Writer outAllTriangles = new FileWriter("AllTriangles-V-"+vernum+"-D-"+density+"-A-"+attackers+".DAT", true);
 		//Writer outAllTrianglesRandom = new FileWriter("AllTriangles-Random-V-"+vernum+"-D-"+density+"-A-"+attackers+".DAT", true);
 				
 
 		//agg.testingActiveAttacks(vernum, edgenum, attackers, outOriginal, outOddCycle, outOddCycleRandom, outShortSingleCycle, outShortSingleCycleRandom, outAllTriangles, outAllTrianglesRandom);
-		//agg.testingActiveAttacks(vernum, edgenum, attackers, outOriginalWalkBased, outOriginalCutBased, outOddCycleWalkBased, outOddCycleCutBased, outOddCycleRandomWalkBased, outOddCycleRandomCutBased, outShortSingleCycleWalkBased, outShortSingleCycleCutBased, outShortSingleCycleRandomWalkBased, outShortSingleCycleRandomCutBased, outTrivialWalkBased, outTrivialCutBased, outTrivialRandomWalkBased, outTrivialRandomCutBased);
+		//agg.testingActiveAttacks(vernum, edgenum, attackers, outOriginalWalkBased, outOriginalCutBased, outOddCycleWalkBased, outOddCycleCutBased, outOddCycleRandomWalkBased, outOddCycleRandomCutBased, outShortSingleCycleWalkBased, outShortSingleCycleCutBased, outShortSingleCycleRandomWalkBased, outShortSingleCycleRandomCutBased, outLargeSingleCycleWalkBased, outLargeSingleCycleCutBased, outLargeSingleCycleRandomWalkBased, outLargeSingleCycleRandomCutBased);
 		
 		String fileNameOutOriginalWalkBased = "Original-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers;
 		String fileNameOutOriginalCutBased = "Original-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers;
@@ -99,12 +99,12 @@ public class AttackThreeMethod {
 		String fileNameOutShortSingleCycleCutBased = "ShortSingleCycle-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers;
 		String fileNameOutShortSingleCycleRandomWalkBased = "ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers;
 		String fileNameOutShortSingleCycleRandomCutBased = "ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers;
-		String fileNameOutTrivialWalkBased = "Trivial-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers;
-		String fileNameOutTrivialCutBased = "Trivial-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers;
-		String fileNameOutTrivialRandomWalkBased = "Trivial-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers;
-		String fileNameOutTrivialRandomCutBased = "Trivial-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers;
+		String fileNameOutLargeSingleCycleWalkBased = "LargeSingleCycle-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers;
+		String fileNameOutLargeSingleCycleCutBased = "LargeSingleCycle-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers;
+		String fileNameOutLargeSingleCycleRandomWalkBased = "LargeSingleCycle-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackers;
+		String fileNameOutLargeSingleCycleRandomCutBased = "LargeSingleCycle-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackers;
 		
-		agg.testingActiveAttacks(vernum, edgenum, attackers, fileNameOutOriginalWalkBased, fileNameOutOriginalCutBased, fileNameOutOddCycleWalkBased, fileNameOutOddCycleCutBased, fileNameOutOddCycleRandomWalkBased, fileNameOutOddCycleRandomCutBased, fileNameOutShortSingleCycleWalkBased, fileNameOutShortSingleCycleCutBased, fileNameOutShortSingleCycleRandomWalkBased, fileNameOutShortSingleCycleRandomCutBased, fileNameOutTrivialWalkBased, fileNameOutTrivialCutBased, fileNameOutTrivialRandomWalkBased, fileNameOutTrivialRandomCutBased);
+		agg.testingActiveAttacks(vernum, edgenum, attackers, fileNameOutOriginalWalkBased, fileNameOutOriginalCutBased, fileNameOutOddCycleWalkBased, fileNameOutOddCycleCutBased, fileNameOutOddCycleRandomWalkBased, fileNameOutOddCycleRandomCutBased, fileNameOutShortSingleCycleWalkBased, fileNameOutShortSingleCycleCutBased, fileNameOutShortSingleCycleRandomWalkBased, fileNameOutShortSingleCycleRandomCutBased, fileNameOutLargeSingleCycleWalkBased, fileNameOutLargeSingleCycleCutBased, fileNameOutLargeSingleCycleRandomWalkBased, fileNameOutLargeSingleCycleRandomCutBased);
 		
 //		outOriginalWalkBased.close();
 //		outOriginalCutBased.close();
@@ -116,10 +116,10 @@ public class AttackThreeMethod {
 //		outShortSingleCycleCutBased.close();
 //		outShortSingleCycleRandomWalkBased.close();
 //		outShortSingleCycleRandomCutBased.close();
-//		outTrivialWalkBased.close();
-//		outTrivialCutBased.close();
-//		outTrivialRandomWalkBased.close();
-//		outTrivialRandomCutBased.close();
+//		outLargeSingleCycleWalkBased.close();
+//		outLargeSingleCycleCutBased.close();
+//		outLargeSingleCycleRandomWalkBased.close();
+//		outLargeSingleCycleRandomCutBased.close();
 		//outAllTriangles.close();
 		//outAllTrianglesRandom.close();
 
@@ -273,15 +273,15 @@ public class AttackThreeMethod {
 //				Writer outShortSingleCycleCutBased = new FileWriter("ShortSingleCycle-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize+".DAT", true);
 //				Writer outShortSingleCycleRandomWalkBased = new FileWriter("ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize+".DAT", true);
 //				Writer outShortSingleCycleRandomCutBased = new FileWriter("ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize+".DAT", true);
-//				Writer outTrivialWalkBased = new FileWriter("Trivial-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize+".DAT", true);
-//				Writer outTrivialCutBased = new FileWriter("Trivial-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize+".DAT", true);
-//				Writer outTrivialRandomWalkBased = new FileWriter("Trivial-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize+".DAT", true);
-//				Writer outTrivialRandomCutBased = new FileWriter("Trivial-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize+".DAT", true);
+//				Writer outLargeSingleCycleWalkBased = new FileWriter("LargeSingleCycle-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize+".DAT", true);
+//				Writer outLargeSingleCycleCutBased = new FileWriter("LargeSingleCycle-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize+".DAT", true);
+//				Writer outLargeSingleCycleRandomWalkBased = new FileWriter("LargeSingleCycle-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize+".DAT", true);
+//				Writer outLargeSingleCycleRandomCutBased = new FileWriter("LargeSingleCycle-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize+".DAT", true);
 				//Writer outAllTriangles = new FileWriter("AllTriangles-V-"+vernum+"-D-"+density+"-A-"+attackers+".DAT", true);
 				//Writer outAllTrianglesRandom = new FileWriter("AllTriangles-Random-V-"+vernum+"-D-"+density+"-A-"+attackers+".DAT", true);
 		
 				//agg.testingActiveAttacks(vernum, edgenum, attackers, outOriginalWalkBased, outOddCycleWalkBased, outOddCycleRandomWalkBased, outShortSingleCycleWalkBased, outShortSingleCycleRandomWalkBased, outAllTriangles, outAllTrianglesRandom);
-				//agg.testingActiveAttacks(vernum, edgenum, attackerSize, outOriginalWalkBased, outOriginalCutBased, outOddCycleWalkBased, outOddCycleCutBased, outOddCycleRandomWalkBased, outOddCycleRandomCutBased, outShortSingleCycleWalkBased, outShortSingleCycleCutBased, outShortSingleCycleRandomWalkBased, outShortSingleCycleRandomCutBased, outTrivialWalkBased, outTrivialCutBased, outTrivialRandomWalkBased, outTrivialRandomCutBased);
+				//agg.testingActiveAttacks(vernum, edgenum, attackerSize, outOriginalWalkBased, outOriginalCutBased, outOddCycleWalkBased, outOddCycleCutBased, outOddCycleRandomWalkBased, outOddCycleRandomCutBased, outShortSingleCycleWalkBased, outShortSingleCycleCutBased, outShortSingleCycleRandomWalkBased, outShortSingleCycleRandomCutBased, outLargeSingleCycleWalkBased, outLargeSingleCycleCutBased, outLargeSingleCycleRandomWalkBased, outLargeSingleCycleRandomCutBased);
 				
 				String fileNameOutOriginalWalkBased = "Original-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize;
 				String fileNameOutOriginalCutBased = "Original-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize;
@@ -293,12 +293,12 @@ public class AttackThreeMethod {
 				String fileNameOutShortSingleCycleCutBased = "ShortSingleCycle-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize;
 				String fileNameOutShortSingleCycleRandomWalkBased = "ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize;
 				String fileNameOutShortSingleCycleRandomCutBased = "ShortSingleCycle-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize;
-				String fileNameOutTrivialWalkBased = "Trivial-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize;
-				String fileNameOutTrivialCutBased = "Trivial-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize;
-				String fileNameOutTrivialRandomWalkBased = "Trivial-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize;
-				String fileNameOutTrivialRandomCutBased = "Trivial-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize;
+				String fileNameOutLargeSingleCycleWalkBased = "LargeSingleCycle-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize;
+				String fileNameOutLargeSingleCycleCutBased = "LargeSingleCycle-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize;
+				String fileNameOutLargeSingleCycleRandomWalkBased = "LargeSingleCycle-Random-V-"+vernum+"-D-"+density+"-WalkBased-A-"+attackerSize;
+				String fileNameOutLargeSingleCycleRandomCutBased = "LargeSingleCyclel-Random-V-"+vernum+"-D-"+density+"-CutBased-A-"+attackerSize;
 				
-				agg.testingActiveAttacks(vernum, edgenum, attackerSize, fileNameOutOriginalWalkBased, fileNameOutOriginalCutBased, fileNameOutOddCycleWalkBased, fileNameOutOddCycleCutBased, fileNameOutOddCycleRandomWalkBased, fileNameOutOddCycleRandomCutBased, fileNameOutShortSingleCycleWalkBased, fileNameOutShortSingleCycleCutBased, fileNameOutShortSingleCycleRandomWalkBased, fileNameOutShortSingleCycleRandomCutBased, fileNameOutTrivialWalkBased, fileNameOutTrivialCutBased, fileNameOutTrivialRandomWalkBased, fileNameOutTrivialRandomCutBased);
+				agg.testingActiveAttacks(vernum, edgenum, attackerSize, fileNameOutOriginalWalkBased, fileNameOutOriginalCutBased, fileNameOutOddCycleWalkBased, fileNameOutOddCycleCutBased, fileNameOutOddCycleRandomWalkBased, fileNameOutOddCycleRandomCutBased, fileNameOutShortSingleCycleWalkBased, fileNameOutShortSingleCycleCutBased, fileNameOutShortSingleCycleRandomWalkBased, fileNameOutShortSingleCycleRandomCutBased, fileNameOutLargeSingleCycleWalkBased, fileNameOutLargeSingleCycleCutBased, fileNameOutLargeSingleCycleRandomWalkBased, fileNameOutLargeSingleCycleRandomCutBased);
 				
 //				outOriginalWalkBased.close();
 //				outOriginalCutBased.close();
@@ -310,10 +310,10 @@ public class AttackThreeMethod {
 //				outShortSingleCycleCutBased.close();
 //				outShortSingleCycleRandomWalkBased.close();
 //				outShortSingleCycleRandomCutBased.close();
-//				outTrivialWalkBased.close();
-//				outTrivialCutBased.close();
-//				outTrivialRandomWalkBased.close();
-//				outTrivialRandomCutBased.close();
+//				outLargeSingleCycleWalkBased.close();
+//				outLargeSingleCycleCutBased.close();
+//				outLargeSingleCycleRandomWalkBased.close();
+//				outLargeSingleCycleRandomCutBased.close();
 				//outAllTriangles.close();
 				//outAllTrianglesRandom.close();
 				//System.out.println("========================================");
@@ -373,8 +373,8 @@ public class AttackThreeMethod {
 			//Writer outOddCycleRandomWalkBased, Writer outOddCycleRandomCutBased,
 			//Writer outShortSingleCycleWalkBased, Writer outShortSingleCycleCutBased,
 			//Writer outShortSingleCycleRandomWalkBased, Writer outShortSingleCycleRandomCutBased,
-			//Writer outTrivialWalkBased, Writer outTrivialCutBased,
-			//Writer outTrivialRandomWalkBased, Writer outTrivialRandomCutBased) throws NoSuchAlgorithmException, IOException{
+			//Writer outLargeSingleCycleWalkBased, Writer outLargeSingleCycleCutBased,
+			//Writer outLargeSingleCycleRandomWalkBased, Writer outLargeSingleCycleRandomCutBased) throws NoSuchAlgorithmException, IOException{
 	
 	
 	// This is for the experiments where graphs are randomly generated given a density value
@@ -384,8 +384,8 @@ public class AttackThreeMethod {
 			String fileNameOutOddCycleRandomWalkBased, String fileNameOutOddCycleRandomCutBased,
 			String fileNameOutShortSingleCycleWalkBased, String fileNameOutShortSingleCycleCutBased,
 			String fileNameOutShortSingleCycleRandomWalkBased, String fileNameOutShortSingleCycleRandomCutBased,
-			String fileNameOutTrivialWalkBased, String fileNameOutTrivialCutBased,
-			String fileNameOutTrivialRandomWalkBased, String fileNameOutTrivialRandomCutBased) throws NoSuchAlgorithmException, IOException{
+			String fileNameOutLargeSingleCycleWalkBased, String fileNameOutLargeSingleCycleCutBased,
+			String fileNameOutLargeSingleCycleRandomWalkBased, String fileNameOutLargeSingleCycleRandomCutBased) throws NoSuchAlgorithmException, IOException{
 		
 		if (attackersSize > n) throw new IllegalArgumentException("The number of attacker cannot be higher " +
 				"than the number of vertices");
@@ -400,10 +400,10 @@ public class AttackThreeMethod {
 		Writer outShortSingleCycleCutBased = new FileWriter(fileNameOutShortSingleCycleCutBased+".DAT", true);
 		Writer outShortSingleCycleRandomWalkBased = new FileWriter(fileNameOutShortSingleCycleRandomWalkBased+".DAT", true);
 		Writer outShortSingleCycleRandomCutBased = new FileWriter(fileNameOutShortSingleCycleRandomCutBased+".DAT", true);
-		Writer outTrivialWalkBased = new FileWriter(fileNameOutTrivialWalkBased+".DAT", true);
-		Writer outTrivialCutBased = new FileWriter(fileNameOutTrivialCutBased+".DAT", true);
-		Writer outTrivialRandomWalkBased = new FileWriter(fileNameOutTrivialRandomWalkBased+".DAT", true);
-		Writer outTrivialRandomCutBased = new FileWriter(fileNameOutTrivialRandomCutBased+".DAT", true);
+		Writer outLargeSingleCycleWalkBased = new FileWriter(fileNameOutLargeSingleCycleWalkBased+".DAT", true);
+		Writer outLargeSingleCycleCutBased = new FileWriter(fileNameOutLargeSingleCycleCutBased+".DAT", true);
+		Writer outLargeSingleCycleRandomWalkBased = new FileWriter(fileNameOutLargeSingleCycleRandomWalkBased+".DAT", true);
+		Writer outLargeSingleCycleRandomCutBased = new FileWriter(fileNameOutLargeSingleCycleRandomCutBased+".DAT", true);
 
 		/*Trujillo- Feb 3, 2016
 		 * We will first define the number of targeted vertices
@@ -606,16 +606,16 @@ public class AttackThreeMethod {
 			 * For each one, a randomly modified graph will also be generated.
 			 * Ramirez - Sep 8, 2016
 			 * Actually, temporarily we will only work on OddCycle and ShortSingleCycle
-			 * (and Trivial)
+			 * (and LargeSingleCycle)
 			 * */
 			
 			//System.out.println("Cloning original");
 			SimpleGraph<String, DefaultEdge> graphRandomEqvOddCycleWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph);
 			SimpleGraph<String, DefaultEdge> graphRandomEqvShortSingleCycleWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph);
-			SimpleGraph<String, DefaultEdge> graphRandomEqvTrivialWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph);
+			SimpleGraph<String, DefaultEdge> graphRandomEqvLargeSingleCycleWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph);
 			SimpleGraph<String, DefaultEdge> graphRandomEqvOddCycleCutBased = GraphUtil.cloneGraph(cutBasedAttackedGraph);
 			SimpleGraph<String, DefaultEdge> graphRandomEqvShortSingleCycleCutBased = GraphUtil.cloneGraph(cutBasedAttackedGraph);
-			SimpleGraph<String, DefaultEdge> graphRandomEqvTrivialCutBased = GraphUtil.cloneGraph(cutBasedAttackedGraph);
+			SimpleGraph<String, DefaultEdge> graphRandomEqvLargeSingleCycleCutBased = GraphUtil.cloneGraph(cutBasedAttackedGraph);
 			//SimpleGraph<String, DefaultEdge> graphRandomEqvAllTriangles = GraphUtil.cloneGraph(walkBasedAttackedGraph);
 
 			//System.out.println("Dealing with end-vertices for this graph adds " + addedEdgeNumDegreeOne + " edges.");
@@ -731,54 +731,54 @@ public class AttackThreeMethod {
 			Statistics.printStatistics(i, outShortSingleCycleRandomCutBased, graphRandomEqvShortSingleCycleCutBased, randomGraphEqvShortSingleCycleFloydCutBased, fileNameOutShortSingleCycleRandomCutBased, attackersSize, victimsSizeCutBased, cutBasedAttackedGraph, originalCutBasedAttackedGraphFloyd);
 			
 			/* Ramirez - Sep 26, 2016
-			 * Anonymizing with TrivialLargeCycle
+			 * Anonymizing with LargeSingleCycle
 			 **/
 			
 			// On walk-based-attacked graph
 			
-			SimpleGraph<String, DefaultEdge> graphAnonymousTrivialWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph); 
+			SimpleGraph<String, DefaultEdge> graphAnonymousLargeSingleCycleWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph); 
 			
-			TrivialLargeCycle.anonymizeGraph(graphAnonymousTrivialWalkBased, originalWalkBasedAttackedGraphFloyd, 5);   // Currently in paper runs with 0
+			LargeSingleCycle.anonymizeGraph(graphAnonymousLargeSingleCycleWalkBased, originalWalkBasedAttackedGraphFloyd, 5);   // Currently in paper runs with 0
 			
-			int addedEdgesTrivialWalkBased = graphAnonymousTrivialWalkBased.edgeSet().size() - walkBasedAttackedGraph.edgeSet().size();
+			int addedEdgesLargeSingleCycleWalkBased = graphAnonymousLargeSingleCycleWalkBased.edgeSet().size() - walkBasedAttackedGraph.edgeSet().size();
 			
-			GraphUtil.addRandomEdges(addedEdgesTrivialWalkBased, graphRandomEqvTrivialWalkBased);
+			GraphUtil.addRandomEdges(addedEdgesLargeSingleCycleWalkBased, graphRandomEqvLargeSingleCycleWalkBased);
 
-			if (graphRandomEqvTrivialWalkBased.edgeSet().size() != graphAnonymousTrivialWalkBased.edgeSet().size())
-				throw new RuntimeException("The random graph has "+graphRandomEqvTrivialWalkBased.edgeSet().size()+
-						", which is different to the graphAnonymous = "+graphAnonymousTrivialWalkBased.edgeSet().size());
+			if (graphRandomEqvLargeSingleCycleWalkBased.edgeSet().size() != graphAnonymousLargeSingleCycleWalkBased.edgeSet().size())
+				throw new RuntimeException("The random graph has "+graphRandomEqvLargeSingleCycleWalkBased.edgeSet().size()+
+						", which is different to the graphAnonymous = "+graphAnonymousLargeSingleCycleWalkBased.edgeSet().size());
 			
-			FloydWarshallShortestPaths<String, DefaultEdge> anonymousGraphTrivialFloydWalkBased = new FloydWarshallShortestPaths<>(graphAnonymousTrivialWalkBased);
+			FloydWarshallShortestPaths<String, DefaultEdge> anonymousGraphLargeSingleCycleFloydWalkBased = new FloydWarshallShortestPaths<>(graphAnonymousLargeSingleCycleWalkBased);
 			
-			Statistics.printStatistics(i, outTrivialWalkBased, graphAnonymousTrivialWalkBased, anonymousGraphTrivialFloydWalkBased, fileNameOutTrivialWalkBased, attackersSize, victimsSizeWalkBased, walkBasedAttackedGraph, originalWalkBasedAttackedGraphFloyd);
+			Statistics.printStatistics(i, outLargeSingleCycleWalkBased, graphAnonymousLargeSingleCycleWalkBased, anonymousGraphLargeSingleCycleFloydWalkBased, fileNameOutLargeSingleCycleWalkBased, attackersSize, victimsSizeWalkBased, walkBasedAttackedGraph, originalWalkBasedAttackedGraphFloyd);
 			
-			//GraphUtil.outputSNAPFormat(graphAnonymousTrivialWalkBased, fileNameOutTrivialWalkBased + "-" + i + ".txt");
+			//GraphUtil.outputSNAPFormat(graphAnonymousLargeSingleCycleWalkBased, fileNameOutLargeSingleCycleWalkBased + "-" + i + ".txt");
 			
-			FloydWarshallShortestPaths<String, DefaultEdge> randomGraphEqvTrivialFloydWalkBased = new FloydWarshallShortestPaths<>(graphRandomEqvTrivialWalkBased);
+			FloydWarshallShortestPaths<String, DefaultEdge> randomGraphEqvLargeSingleCycleFloydWalkBased = new FloydWarshallShortestPaths<>(graphRandomEqvLargeSingleCycleWalkBased);
 			
-			Statistics.printStatistics(i, outTrivialRandomWalkBased, graphRandomEqvTrivialWalkBased, randomGraphEqvTrivialFloydWalkBased, fileNameOutTrivialRandomWalkBased, attackersSize, victimsSizeWalkBased, walkBasedAttackedGraph, originalWalkBasedAttackedGraphFloyd);
+			Statistics.printStatistics(i, outLargeSingleCycleRandomWalkBased, graphRandomEqvLargeSingleCycleWalkBased, randomGraphEqvLargeSingleCycleFloydWalkBased, fileNameOutLargeSingleCycleRandomWalkBased, attackersSize, victimsSizeWalkBased, walkBasedAttackedGraph, originalWalkBasedAttackedGraphFloyd);
 						
 			// On cut-based-attacked graph
 			
-			SimpleGraph<String, DefaultEdge> graphAnonymousTrivialCutBased = GraphUtil.cloneGraph(cutBasedAttackedGraph); 
+			SimpleGraph<String, DefaultEdge> graphAnonymousLargeSingleCycleCutBased = GraphUtil.cloneGraph(cutBasedAttackedGraph); 
 			
-			TrivialLargeCycle.anonymizeGraph(graphAnonymousTrivialCutBased, originalCutBasedAttackedGraphFloyd, 5);   // Currently in paper runs with 0
+			LargeSingleCycle.anonymizeGraph(graphAnonymousLargeSingleCycleCutBased, originalCutBasedAttackedGraphFloyd, 5);   // Currently in paper runs with 0
 			
-			int addedEdgesTrivialCutBased = graphAnonymousTrivialCutBased.edgeSet().size() - cutBasedAttackedGraph.edgeSet().size();
+			int addedEdgesLargeSingleCycleCutBased = graphAnonymousLargeSingleCycleCutBased.edgeSet().size() - cutBasedAttackedGraph.edgeSet().size();
 			
-			GraphUtil.addRandomEdges(addedEdgesTrivialCutBased, graphRandomEqvTrivialCutBased);
+			GraphUtil.addRandomEdges(addedEdgesLargeSingleCycleCutBased, graphRandomEqvLargeSingleCycleCutBased);
 
-			if (graphRandomEqvTrivialCutBased.edgeSet().size() != graphAnonymousTrivialCutBased.edgeSet().size())
-				throw new RuntimeException("The random graph has "+graphRandomEqvTrivialCutBased.edgeSet().size()+
-						", which is different to the graphAnonymous = "+graphAnonymousTrivialCutBased.edgeSet().size());
+			if (graphRandomEqvLargeSingleCycleCutBased.edgeSet().size() != graphAnonymousLargeSingleCycleCutBased.edgeSet().size())
+				throw new RuntimeException("The random graph has "+graphRandomEqvLargeSingleCycleCutBased.edgeSet().size()+
+						", which is different to the graphAnonymous = "+graphAnonymousLargeSingleCycleCutBased.edgeSet().size());
 			
-			FloydWarshallShortestPaths<String, DefaultEdge> anonymousGraphTrivialFloydCutBased = new FloydWarshallShortestPaths<>(graphAnonymousTrivialCutBased);
+			FloydWarshallShortestPaths<String, DefaultEdge> anonymousGraphLargeSingleCycleFloydCutBased = new FloydWarshallShortestPaths<>(graphAnonymousLargeSingleCycleCutBased);
 			
-			Statistics.printStatistics(i, outTrivialCutBased, graphAnonymousTrivialCutBased, anonymousGraphTrivialFloydCutBased, fileNameOutTrivialCutBased, attackersSize, victimsSizeCutBased, cutBasedAttackedGraph, originalCutBasedAttackedGraphFloyd);
+			Statistics.printStatistics(i, outLargeSingleCycleCutBased, graphAnonymousLargeSingleCycleCutBased, anonymousGraphLargeSingleCycleFloydCutBased, fileNameOutLargeSingleCycleCutBased, attackersSize, victimsSizeCutBased, cutBasedAttackedGraph, originalCutBasedAttackedGraphFloyd);
 			
-			FloydWarshallShortestPaths<String, DefaultEdge> randomGraphEqvTrivialFloydCutBased = new FloydWarshallShortestPaths<>(graphRandomEqvTrivialCutBased);
+			FloydWarshallShortestPaths<String, DefaultEdge> randomGraphEqvLargeSingleCycleFloydCutBased = new FloydWarshallShortestPaths<>(graphRandomEqvLargeSingleCycleCutBased);
 			
-			Statistics.printStatistics(i, outTrivialRandomCutBased, graphRandomEqvTrivialCutBased, randomGraphEqvTrivialFloydCutBased, fileNameOutTrivialRandomCutBased, attackersSize, victimsSizeCutBased, cutBasedAttackedGraph, originalCutBasedAttackedGraphFloyd);
+			Statistics.printStatistics(i, outLargeSingleCycleRandomCutBased, graphRandomEqvLargeSingleCycleCutBased, randomGraphEqvLargeSingleCycleFloydCutBased, fileNameOutLargeSingleCycleRandomCutBased, attackersSize, victimsSizeCutBased, cutBasedAttackedGraph, originalCutBasedAttackedGraphFloyd);
 			
 			/* Ramirez - Aug 10, 2016
 			 * Anonymizing with AllTriangles
@@ -827,10 +827,10 @@ public class AttackThreeMethod {
 		outShortSingleCycleCutBased.close();
 		outShortSingleCycleRandomWalkBased.close();
 		outShortSingleCycleRandomCutBased.close();
-		outTrivialWalkBased.close();
-		outTrivialCutBased.close();
-		outTrivialRandomWalkBased.close();
-		outTrivialRandomCutBased.close();
+		outLargeSingleCycleWalkBased.close();
+		outLargeSingleCycleCutBased.close();
+		outLargeSingleCycleRandomWalkBased.close();
+		outLargeSingleCycleRandomCutBased.close();
 	}
 	
 	public void testingActiveAttacksAdj11(int n,int m, int attackersSize,
@@ -1106,7 +1106,7 @@ public class AttackThreeMethod {
 			}
 		}
 	
-		UndirectedGraph<String, DefaultEdge> graph = GraphUtil.transformRealSocNetIntoOurFormat(originalGraph, 0, verticesToKeep); 
+		UndirectedGraph<String, DefaultEdge> graph = GraphUtil.shiftAndShuffleVertexIds(originalGraph, 0, verticesToKeep); 
 		
 		connectivity = new ConnectivityInspector<>(graph);
 		if (!connectivity.isGraphConnected()) throw new RuntimeException();
@@ -1135,10 +1135,10 @@ public class AttackThreeMethod {
 			GraphUtil.addRandomEdges(graph.edgeSet().size() - originalEdgeCount, anonymousGraphRandom);
 			GraphUtil.outputSNAPFormat(anonymousGraphRandom, socNetName + "-randomly-anonymized-equiv-shortestcycle.txt");
 			break;
-		case 3:   // Anonymize using TrivialLargeCycle
+		case 3:   // Anonymize using LargeSingleCycle
 			anonymousGraphRandom = GraphUtil.cloneGraph(graph);
 			floydOriginalGraph = new FloydWarshallShortestPaths<>(graph);
-			TrivialLargeCycle.anonymizeGraph(graph, floydOriginalGraph, 5);   // Currently in paper runs with 0
+			LargeSingleCycle.anonymizeGraph(graph, floydOriginalGraph, 5);   // Currently in paper runs with 0
 			GraphUtil.outputSNAPFormat(graph, socNetName + "-anonymized-largestcycle.txt");
 			GraphUtil.addRandomEdges(graph.edgeSet().size() - originalEdgeCount, anonymousGraphRandom);
 			GraphUtil.outputSNAPFormat(anonymousGraphRandom, socNetName + "-randomly-anonymized-equiv-largestcycle.txt");
@@ -1205,7 +1205,7 @@ public class AttackThreeMethod {
 			
 			do {
 				
-				attackedGraph = GraphUtil.transformRealSocNetIntoOurFormat(originalGraph, attackerCount, verticesToKeep);
+				attackedGraph = GraphUtil.shiftAndShuffleVertexIds(originalGraph, attackerCount, verticesToKeep);
 				
 				connectivity = new ConnectivityInspector<>(attackedGraph);
 				if (!connectivity.isGraphConnected()) throw new RuntimeException();
@@ -1340,11 +1340,11 @@ public class AttackThreeMethod {
 				Statistics.printStatistics(0, out, anonymousGraphRandom, floydRandomlyAnonymizedGraph, attackIdStr + "-randomly-anonymized-shortestcycle", attackerCount, victimCount, attackedGraph, floydAttackedGraph);
 				out.close();
 				break;
-			case 3:   // Anonymize using TrivialLargeCycle
+			case 3:   // Anonymize using LargeSingleCycle
 				anonymousGraph = GraphUtil.cloneGraph(attackedGraph);
 				anonymousGraphRandom = GraphUtil.cloneGraph(attackedGraph);
 				floydAttackedGraph = new FloydWarshallShortestPaths<>(attackedGraph);
-				TrivialLargeCycle.anonymizeGraph(anonymousGraph, floydAttackedGraph, 5);   // Runs with 0 never included in paper
+				LargeSingleCycle.anonymizeGraph(anonymousGraph, floydAttackedGraph, 5);   // Runs with 0 never included in paper
 				GraphUtil.outputSNAPFormat(anonymousGraph, socNetName + attackIdStr + "-anonymized-largestcycle-" + iterIdStr + ".txt");			
 				floydAnonymizedGraph = new FloydWarshallShortestPaths<>(anonymousGraph);
 				out = new FileWriter(socNetName + attackIdStr + "-anonymized-largestcycle-" + iterIdStr + "-stats.txt");
@@ -1427,7 +1427,7 @@ public class AttackThreeMethod {
 			System.out.println("===============================================");
 			double timeIni = System.currentTimeMillis();
 
-			UndirectedGraph<String, DefaultEdge> graph = GraphUtil.transformRealSocNetIntoOurFormat(originalGraph, attackersSize, verticesToKeep);
+			UndirectedGraph<String, DefaultEdge> graph = GraphUtil.shiftAndShuffleVertexIds(originalGraph, attackersSize, verticesToKeep);
 			
 			connectivity = new ConnectivityInspector<>(graph);
 			if (!connectivity.isGraphConnected()) throw new RuntimeException();
@@ -1923,7 +1923,7 @@ public class AttackThreeMethod {
 			
 			do {
 				
-				attackedGraph = GraphUtil.transformRealSocNetIntoOurFormat(graph, attackerCount, verticesToKeep);
+				attackedGraph = GraphUtil.shiftAndShuffleVertexIds(graph, attackerCount, verticesToKeep);
 				
 				connectivity = new ConnectivityInspector<>(attackedGraph);
 				if (!connectivity.isGraphConnected()) 
@@ -2103,7 +2103,7 @@ public class AttackThreeMethod {
 			
 			do {
 				
-				attackedGraph = GraphUtil.transformRealSocNetIntoOurFormat(graph, attackerCount, verticesToKeep);
+				attackedGraph = GraphUtil.shiftAndShuffleVertexIds(graph, attackerCount, verticesToKeep);
 				
 				connectivity = new ConnectivityInspector<>(attackedGraph);
 				if (!connectivity.isGraphConnected()) 
@@ -2347,7 +2347,7 @@ public class AttackThreeMethod {
 			
 			do {
 				
-				attackedGraph = GraphUtil.transformRealSocNetIntoOurFormat(graph, attackerCount, verticesToKeep);
+				attackedGraph = GraphUtil.shiftAndShuffleVertexIds(graph, attackerCount, verticesToKeep);
 				
 				connectivity = new ConnectivityInspector<>(attackedGraph);
 				if (!connectivity.isGraphConnected()) 

@@ -56,13 +56,4 @@ public class AttackerUtil {
 		} 
 	} 
 	
-	public static void main(String[] args) {
-		List<int[]> combines = new ArrayList<int[]>();
-		
-		getCombine(combines,4);
-		
-		for(int[] temp : combines){
-//			System.out.println(Arrays.toString(temp));
-		}
-	}
 }

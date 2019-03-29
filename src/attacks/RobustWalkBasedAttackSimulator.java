@@ -39,14 +39,18 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 	protected boolean applyApproxFingerprintMatching;
 	protected LinearCode codec;
 	protected Set<String> uniformlyDistributedFingerprints;
-	int lengthUnifDistFingerprints; 
+	protected boolean generateOnceUnifDistrFp;
+	protected int attackerCountOfGeneratedUnifDistrFp; 
+	protected int victimCountOfGeneratedUnifDistrFp;
 
 	public RobustWalkBasedAttackSimulator(int maxEditDist, boolean sybDegSeqOpt, boolean apprFgPrMatch, boolean useErrorCorrectingFingerprints) {   // This constructor ignores fingerprint dispersion. Kept for back-compatibility
 		maxEditDistance = maxEditDist;
 		applySybilDegSeqOptimization = sybDegSeqOpt;
 		useUniformlyDistributedFingerprints = false;
 		uniformlyDistributedFingerprints = null;
-		lengthUnifDistFingerprints = -1;
+		generateOnceUnifDistrFp = false;
+		attackerCountOfGeneratedUnifDistrFp = -1;
+		victimCountOfGeneratedUnifDistrFp = -1;
 		applyApproxFingerprintMatching = apprFgPrMatch;
 		if (useErrorCorrectingFingerprints)
 			codec = new Hamming74Code();
@@ -59,7 +63,9 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		applySybilDegSeqOptimization = sybDegSeqOpt;
 		useUniformlyDistributedFingerprints = unifDistrFgPr;
 		uniformlyDistributedFingerprints = null;
-		lengthUnifDistFingerprints = -1;
+		generateOnceUnifDistrFp = true;
+		attackerCountOfGeneratedUnifDistrFp = -1;
+		victimCountOfGeneratedUnifDistrFp = -1;
 		applyApproxFingerprintMatching = apprFgPrMatch;
 		if (useErrorCorrectingFingerprints)
 			codec = new Hamming74Code();
@@ -79,7 +85,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		/**
 		 * In an initial implementation, the number of sybils for the non-error-correcting fingerprint was set and then the larger number of sybils 
 		 * for error-correcting fingerprints was determined. Now we do the opposite, an upper bound on the number of sybils is set, 
-		 * and the code determines the maximum number of non-redundant fingerprints that can be encoded into this bound   
+		 * and the codec determines the maximum number of non-redundant fingerprints that can be encoded into this bound   
 		 * */
 		//int finalAttackerCount = attackerCount;
 		//int chunkCount = (attackerCount % codec.getMessageLength() == 0)? attackerCount / codec.getMessageLength() : 1 + attackerCount / codec.getMessageLength();
@@ -97,24 +103,48 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		
 		if (useUniformlyDistributedFingerprints) {
 			
-			if (uniformlyDistributedFingerprints == null || uniformlyDistributedFingerprints.size() != victimCount || lengthUnifDistFingerprints != attackerCount) {   // Once a set of uniformly distributed fingerprints is created, it will be used later on as many times as possible
-				lengthUnifDistFingerprints = attackerCount;
+			if (generateOnceUnifDistrFp) {   // Once a pool of uniformly distributed fingerprints is created, it will be used later on as many times as possible
+				if (uniformlyDistributedFingerprints == null || attackerCountOfGeneratedUnifDistrFp != attackerCount || victimCountOfGeneratedUnifDistrFp != victimCount) {   
+				attackerCountOfGeneratedUnifDistrFp = attackerCount;
+				victimCountOfGeneratedUnifDistrFp = victimCount;
 				uniformlyDistributedFingerprints = generateDistributedSetOfFingerprints(victimCount, attackerCount);
-				if (uniformlyDistributedFingerprints.size() > victimCount) {
-					ArrayList<String> fpArray = new ArrayList<>(uniformlyDistributedFingerprints);
-					uniformlyDistributedFingerprints = new TreeSet<>();
-					for (int mdf = 0; mdf < victimCount; mdf++) {
-						int indSel = random.nextInt(fpArray.size());
-						uniformlyDistributedFingerprints.add(fpArray.get(indSel));
-						fpArray.remove(indSel);
-					}
+				
+				// This step is now being done for every attack
+				// if (uniformlyDistributedFingerprints.size() > victimCount) {
+				//	ArrayList<String> fpArray = new ArrayList<>(uniformlyDistributedFingerprints);
+				//	uniformlyDistributedFingerprints = new TreeSet<>();
+				//	for (int mdf = 0; mdf < victimCount; mdf++) {
+				//		int indSel = random.nextInt(fpArray.size());
+				//		uniformlyDistributedFingerprints.add(fpArray.get(indSel));
+				//		fpArray.remove(indSel);
+				//	}
+				//}
+				
+				}
+				// else the already available set of uniformly distributed fingerprints will be used				
+			}
+			else
+				uniformlyDistributedFingerprints = generateDistributedSetOfFingerprints(victimCount, attackerCount);
+			
+			// Select from the set of uniformly distributed fingerprints the subset that will be used for this instance of the attack
+			
+			Set<String> fingerprintsToUse = null;
+			
+			if (victimCount < uniformlyDistributedFingerprints.size()) {
+				fingerprintsToUse = new TreeSet<>();
+				ArrayList<String> fpArray = new ArrayList<>(uniformlyDistributedFingerprints);
+				for (int mdf = 0; mdf < victimCount; mdf++) {
+					int indSel = random.nextInt(fpArray.size());
+					fingerprintsToUse.add(fpArray.get(indSel));
+					fpArray.remove(indSel);
 				}
 			}
-			// else the already available set of uniformly distributed fingerprints will be used 
+			else   // victimCount == uniformlyDistributedFingerprints.size()
+				fingerprintsToUse = new TreeSet<>(uniformlyDistributedFingerprints);
 			
-			// Once the set of uniformly distributed fingerprints is ensured to be available, add necessary edges to the graph
+			// Add necessary edges to the graph
 			for (int j = attackerCount; j < attackerCount + victimCount; j++)
-				for (String fingerprint : uniformlyDistributedFingerprints)	
+				for (String fingerprint : fingerprintsToUse)	
 					for (int k = 0; k < fingerprint.length(); k++) 
 						if (fingerprint.charAt(k) == '1') 
 							graph.addEdge(j+"", (k + attackerCount - fingerprint.length()) + "");
@@ -146,28 +176,12 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				graph.addEdge(k + "", (k+1) + "");
 		
 		if (applySybilDegSeqOptimization) {
-		    
-			/* 
-		     * Eppstein et al.'s scale-free random graph
-			 */
-			
-//			int avDegree = (attackerCount - 1) / 4;   // Needs to be parameterized
-//			double gamma = 2.5;   // Needs to be parameterized
-//			double K0 = avDegree * ((gamma - 2) * (gamma - 2)) / ((gamma - 1) * (gamma - 1));   // This parameter is defined in Eppstein et al.'s paper
-//			for (int k = 0; k < attackerCount - 2; k++) {
-//				for (int l = k + 2; l < attackerCount; l++) {
-//					double prob = K0 * Math.pow((k + 1) * (l + 1) * Math.pow(attackerCount, gamma - 3), -1d / (gamma - 1));   // This computation is defined in Eppstein et al.'s paper
-//					if (random.nextDouble() < prob && !graph.containsEdge(k + "", l + "")) {
-//						graph.addEdge(k + "", l + "");
-//					}
-//				}
-//			}
 			
 			/* 
 		     * Erdos-Renyi with large p 
 			 */
 			
-			double p = 0.75d;
+			double p = 0.95d;
 			
 			for (int k = 0; k < attackerCount - 2; k++) {
 				for (int l = k + 2; l < attackerCount; l++) {

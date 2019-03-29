@@ -355,7 +355,7 @@ public class ExperimentsSybilHiding {
 			
 			do {
 				
-				attackedGraph = GraphUtil.transformRealSocNetIntoOurFormat(graph, attackerCount, verticesToKeep);
+				attackedGraph = GraphUtil.shiftAndShuffleVertexIds(graph, attackerCount, verticesToKeep);
 				
 				connectivity = new ConnectivityInspector<>(attackedGraph);
 				if (!connectivity.isGraphConnected()) 
