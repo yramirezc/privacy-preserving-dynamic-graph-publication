@@ -56,12 +56,6 @@ public abstract class DegreeAnonymityLiuTerzi {
 				ordSmallest--;
 			degreeSequence.set(ordSmallest, degreeSequence.get(ordSmallest) + 1);
 			
-			// A patch to get the method to end faster with high density graphs
-			/*int ordLargest = 0;
-			while (ordLargest < degreeSequence.size() - 1 && degreeSequence.get(ordLargest).equals(degreeSequence.get(ordLargest + 1)))
-				ordLargest++;
-			degreeSequence.set(ordLargest + 1, degreeSequence.get(ordLargest + 1) + 1);//*/
-			
 			// Anonymize the noisy degree sequence
 			anonymousDegreeSequence = new ArrayList<>(degreeSequence);
 			anonymizeDegreeSequence(anonymousDegreeSequence, k);
@@ -73,10 +67,7 @@ public abstract class DegreeAnonymityLiuTerzi {
 	}
 	
 	static void anonymizeDegreeSequence(List<Integer> degreeSequence, int k) {
-		
-//		System.out.println("Before:");
-//		System.out.println(degreeSequence);
-		
+				
 		// Initialize group costs
 		int [][] groupCosts = new int[degreeSequence.size()][];
 		for (int i = 0; i < degreeSequence.size(); i++) {
@@ -97,7 +88,6 @@ public abstract class DegreeAnonymityLiuTerzi {
 			}
 			else {
 				// Find best cut point
-				//int start = Integer.max(k - 1, i - 2*k + 1);
 				int start = k - 1;
 				if (start < i - 2*k + 1)
 					start = i - 2*k + 1;
@@ -124,9 +114,6 @@ public abstract class DegreeAnonymityLiuTerzi {
 			end = cutPoints[end];
 		} while (end >= 0);
 		
-//		System.out.println("After:");
-//		System.out.println(degreeSequence);
-		
 	}
 	
 	static boolean getEdgseSet2RealizeDegreeSequence(UndirectedGraph<String, DefaultEdge> graph, List<Integer> degreeSequence, List<String> sortedVertices, List<String> sourcesNewEdges, List<String> targetsNewEdges) {
@@ -142,9 +129,7 @@ public abstract class DegreeAnonymityLiuTerzi {
 		int sumDegrees = 0;
 		for (int deg : additionalDegrees)
 			sumDegrees += deg;
-//		System.out.println("Sequence additional degrees:");
-//		System.out.println(additionalDegrees);
-//		System.out.println("sumAdditionalDegrees == " + sumDegrees);
+		
 		if (sumDegrees % 2 == 1)
 			return false;
 		
@@ -212,105 +197,4 @@ public abstract class DegreeAnonymityLiuTerzi {
 		return iskAnonymous(degreeSequence, k);
 	}
 	
-	public static void main(String [] args) {
-		SecureRandom random = new SecureRandom();
-		/*ArrayList<ArrayList<Integer>> fails = new ArrayList<>();
-		int exceptionCount = 0;
-		for (int iter = 0; iter < 1000000; iter++) {
-			int k = random.nextInt(19) + 2;
-			int n = k * (random.nextInt(18) + 3) + random.nextInt(k);
-			System.out.println("k == " + k + ", n == " + n);
-			ArrayList<Integer> sequence = new ArrayList<>();
-			for (int i = 0; i < n; i++) 
-				sequence.add(random.nextInt(n - 2) + 1);
-			sequence.sort(Collections.reverseOrder());
-			try {
-				anonymizeDegreeSequence(sequence, k);
-			}
-			catch (Exception e) {
-				exceptionCount++;
-				System.out.println("Exception occurred");
-			}
-			if (!iskAnonymous(sequence, k))
-				fails.add(sequence);
-		}
-		System.out.println("Fails:");
-		for (ArrayList<Integer> fail : fails)
-			System.out.println(fail);
-		System.out.println("Total: " + fails.size() + " fails");
-		System.out.println(exceptionCount + " exceptions");//*/
-		
-		/*
-		ArrayList<UndirectedGraph<String, DefaultEdge>> fails = new ArrayList<>();
-		int exceptionCount = 0;
-		for (int iter = 0; iter < 10000; iter++) {
-			int k = random.nextInt(9) + 2;
-			int n = k * (random.nextInt(8) + 3) + random.nextInt(k);
-			double density = 0.1d * (random.nextInt(10) + 1);
-			int m = (int)(density*n*(n-1)/2);
-			System.out.println("k == " + k + ", n == " + n + ", m == " + m);
-			VertexFactory<String> vertexFactory = new VertexFactory<String>(){
-				int i = 0;
-				@Override
-				public String createVertex() {
-					int result = i;
-					i++;
-					return result+"";
-				}
-				
-			};
-			UndirectedGraph<String, DefaultEdge> graph = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
-			
-			RandomGraphGenerator<String, DefaultEdge> generator = new RandomGraphGenerator<>(n, m);
-			generator.generateGraph(graph, vertexFactory, null);
-			int sumDegree = 0;
-			for (String v : graph.vertexSet())
-				sumDegree += graph.degreeOf(v);
-			System.out.println("sumDegrees == " + sumDegree);
-			SimpleGraph<String, DefaultEdge> anonymousGraph = GraphUtil.cloneGraph(graph);
-			try {
-				anonymizeGraph(anonymousGraph, k); 
-				if (!iskAnonymous(anonymousGraph, k))
-					fails.add(graph);
-			}
-			catch (Exception e) {
-				exceptionCount++;
-				System.out.println("Exception occurred");
-			}
-		}
-		System.out.println("Fails:");
-		for (UndirectedGraph<String, DefaultEdge> fail : fails)
-			System.out.println(fail.toString());
-		System.out.println("Total: " + fails.size() + " fails");
-		System.out.println(exceptionCount + " exceptions");//*/
-		
-		
-		int n = 200;
-		// Create complete graph
-		UndirectedGraph<String, DefaultEdge> graph = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
-		for (int i = 0; i < n; i++) {
-			graph.addVertex(i+"");
-			for (int j = 0; j < i; j++)
-				//if (random.nextInt(10) < 9)
-					graph.addEdge(i+"", j+"");
-		}
-		// Attack
-		graph.addVertex(n+"");
-		graph.addEdge(n+"", "0");
-		
-		SimpleGraph<String, DefaultEdge> anonymousGraph = GraphUtil.cloneGraph(graph);
-		// Anonymize
-		try {
-			anonymizeGraph(anonymousGraph, 2); 
-			if (!iskAnonymous(anonymousGraph, 2))
-				System.out.println("Not anonymized");
-			else
-				System.out.println("Anonymized");
-		}
-		catch (Exception e) {
-			System.out.println("Exception occurred");
-		}
-		
-	}
-
 }

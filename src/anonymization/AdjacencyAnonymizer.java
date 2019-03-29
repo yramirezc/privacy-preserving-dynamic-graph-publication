@@ -1,6 +1,5 @@
 package anonymization;
 
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,11 +11,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import org.jgrapht.Graphs;
 import org.jgrapht.UndirectedGraph;
-import org.jgrapht.VertexFactory;
-import org.jgrapht.generate.RandomGraphGenerator;
 import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.SimpleGraph;
-
 import util.CombinationIterator;
 import util.GraphUtil;
 
@@ -1282,63 +1277,6 @@ public abstract class AdjacencyAnonymizer {
 				return false;
 		}
 		return true;
-	}
-	
-	//==================================================================================================================
-	
-	public static void main(String [] args) {
-		SecureRandom random = new SecureRandom();
-		ArrayList<UndirectedGraph<String, DefaultEdge>> fails = new ArrayList<>();
-		int exceptionCount = 0;
-		int timesDominantForced = 0;
-		for (int iter = 0; iter < 10000; iter++) {
-			int k = random.nextInt(9) + 2;
-			int n = k * (random.nextInt(8) + 3) + random.nextInt(k);
-			double density = 0.1d * (random.nextInt(10) + 1);
-			int m = (int)(density*n*(n-1)/2);
-			System.out.println("k == " + k + ", n == " + n + ", m == " + m);
-			VertexFactory<String> vertexFactory = new VertexFactory<String>(){
-				int i = 0;
-				@Override
-				public String createVertex() {
-					int result = i;
-					i++;
-					return result+"";
-				}
-				
-			};
-			UndirectedGraph<String, DefaultEdge> graph = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
-			
-			RandomGraphGenerator<String, DefaultEdge> generator = new RandomGraphGenerator<>(n, m);
-			generator.generateGraph(graph, vertexFactory, null);
-			Set<String> originalLowDeg = new HashSet<>();
-			Set<String> originalHighDeg = new HashSet<>();
-			for (String v : graph.vertexSet()) {
-				int deg = graph.degreeOf(v);
-				if (deg > 0 && deg < k) 
-					originalLowDeg.add(v);
-				else if (deg > n - k - 1 && deg < n - 1)
-					originalHighDeg.add(v);
-			}
-			System.out.println("originalLowDeg: " + originalLowDeg);
-			System.out.println("originalHighDeg == " + originalHighDeg);
-			SimpleGraph<String, DefaultEdge> anonymousGraph = GraphUtil.cloneGraph(graph);
-			try {
-				timesDominantForced += (k1AdjAnonymousTransformation(anonymousGraph, k))? 1:0;
-				if (!checkAdjAnonymousTransf(anonymousGraph, k, originalLowDeg, originalHighDeg))
-					fails.add(graph);
-			}
-			catch (Exception e) {
-				exceptionCount++;
-				System.out.println("Exception occurred");
-			}
-		}
-		System.out.println("Fails:");
-		for (UndirectedGraph<String, DefaultEdge> fail : fails)
-			System.out.println(fail.toString());
-		System.out.println("Total: " + fails.size() + " fails");
-		System.out.println(exceptionCount + " exceptions");
-		System.out.println("timesDominantForced == " + timesDominantForced);
 	}
 	
 }

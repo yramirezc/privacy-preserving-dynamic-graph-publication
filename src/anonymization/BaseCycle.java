@@ -72,48 +72,6 @@ public abstract class BaseCycle {
 					graph.addEdge(v, v1);
 				}
 			}
-			
-//			List<String> bestBrothers = new ArrayList<>();
-//			for (int i = 0; i < endVertices.size(); i++) {
-//				String endVert = endVertices.get(i);
-//				String parent = Graphs.neighborListOf(graph, endVert).get(0);
-//				List<String> bestScored = null;
-//				double bestScore = -1.0;
-//				for (String tmpV : Graphs.neighborListOf(graph, parent))
-//					if (!tmpV.equals(endVert)) {  // If tmpV is a neighbor of parent and different from endVert, then d(endVert, tmpV)=2 
-//						double score = NeighborhoodBasedScorer.scoreHubDepressed(graph, endVert, tmpV);
-//						if (score > bestScore){
-//							bestScore = score;
-//							bestScored = new ArrayList<String>();
-//							bestScored.add(tmpV);
-//						}
-//						else if (score == bestScore)
-//							bestScored.add(tmpV);
-//					}
-//				bestBrothers.add(bestScored.get(random.nextInt(bestScored.size())));
-//			}
-//			
-//			for (String endVert : endVertices) {
-//				String parent = Graphs.neighborListOf(graph, endVert).get(0);
-//				List<String> bestScored = null;
-//				double bestScore = -1.0;
-//				for (String tmpV : Graphs.neighborListOf(graph, parent))
-//					if (!tmpV.equals(endVert)) {  // If tmpV is a neighbor of parent and different from endVert, then d(endVert, tmpV)=2 
-//						double score = NeighborhoodBasedScorer.scoreHubDepressed(graph, endVert, tmpV);
-//						if (score > bestScore){
-//							bestScore = score;
-//							bestScored = new ArrayList<String>();
-//							bestScored.add(tmpV);
-//						}
-//						else if (score == bestScore)
-//							bestScored.add(tmpV);
-//					}
-//				SecureRandom random = new SecureRandom();
-//				// Initially, I was adding all best scored 
-//				//for (String bsVert : bestScored)
-//					//graph.addEdge(endVert, bsVert);
-//				graph.addEdge(endVert, bestScored.get(random.nextInt(bestScored.size())));
-//			}
 			break;
 		default:
 			break;
