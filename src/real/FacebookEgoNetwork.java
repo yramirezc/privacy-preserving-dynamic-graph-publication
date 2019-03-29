@@ -6,8 +6,11 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
+import org.jgrapht.UndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
+
+import util.GraphUtil;
 
 public class FacebookEgoNetwork extends SimpleGraph<String, DefaultEdge> {
 	
@@ -16,18 +19,24 @@ public class FacebookEgoNetwork extends SimpleGraph<String, DefaultEdge> {
 	public FacebookEgoNetwork(Class<? extends DefaultEdge> edgeClass, String egoNetworkId) {
 		super(edgeClass);
 		try {
-			this.addVertex(egoNetworkId);
+			boolean onlyNeighbors = (egoNetworkId.endsWith("-only-neighbors")); 
+			if (onlyNeighbors)
+				egoNetworkId = egoNetworkId.substring(0, egoNetworkId.length() - 15);   // Remove the "-only-neighbors" suffix 
+			else
+				this.addVertex(egoNetworkId);
 			BufferedReader reader = new BufferedReader(new FileReader(new File("facebook/facebook/" + egoNetworkId + ".edges")));
 			for (String line = reader.readLine(); line != null; line = reader.readLine()){
 				String[] vertices = line.split(" ");					
 				if (vertices.length == 2) {
 					if (!this.containsVertex(vertices[0])) {
 						this.addVertex(vertices[0]);
-						this.addEdge(egoNetworkId, vertices[0]);
+						if (!onlyNeighbors)
+							this.addEdge(egoNetworkId, vertices[0]);
 					}
 					if (!this.containsVertex(vertices[1])) {
 						this.addVertex(vertices[1]);
-						this.addEdge(egoNetworkId, vertices[1]);
+						if (!onlyNeighbors)
+							this.addEdge(egoNetworkId, vertices[1]);
 					}
 					this.addEdge(vertices[0], vertices[1]);
 				}

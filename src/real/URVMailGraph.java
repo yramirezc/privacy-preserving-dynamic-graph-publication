@@ -11,10 +11,7 @@ import org.jgrapht.graph.SimpleGraph;
 
 public class URVMailGraph extends SimpleGraph<String, DefaultEdge> {
 	
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 2201631506342282914L;
+	private static final long serialVersionUID = 4073838897135199152L;
 
 	public URVMailGraph(Class<? extends DefaultEdge> edgeClass) {
 		super(edgeClass);
@@ -35,7 +32,7 @@ public class URVMailGraph extends SimpleGraph<String, DefaultEdge> {
 			reader.close();
 		} catch (FileNotFoundException e1) {
 			e1.printStackTrace();
-		}catch (IOException e2) {
+		} catch (IOException e2) {
 			e2.printStackTrace();
 		}
 	}
