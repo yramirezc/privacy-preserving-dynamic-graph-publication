@@ -738,6 +738,17 @@ public class GraphUtil {
 		return subgraph;
 	}
 	
+	public static int edgeCountInducedSubgraph(UndirectedGraph<String, DefaultEdge> graph, Set<String> subset) {
+		int edgeCount = 0;
+		ArrayList<String> vertList = new ArrayList<>(subset);
+		for (int i = 0; i < vertList.size() - 1; i++)
+			for (int j = i + 1; j < vertList.size(); j++)
+				if (graph.containsVertex(vertList.get(i)) && graph.containsVertex(vertList.get(j)) 
+					&& graph.containsEdge(vertList.get(i), vertList.get(j)))
+					edgeCount++;
+		return edgeCount;
+	}
+	
 	public static int minDegree(UndirectedGraph<String, DefaultEdge> graph) {
 		int minDegree = graph.vertexSet().size();
 		for (String v : graph.vertexSet())
