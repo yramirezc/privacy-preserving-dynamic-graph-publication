@@ -24,7 +24,7 @@ public class FacebookGraph extends SimpleGraph<String, DefaultEdge> {
 					else return false;
 				}
 			});
-			for (File file : files){
+			for (File file : files) {
 				BufferedReader reader = new BufferedReader(new FileReader(file));
 				for (String line = reader.readLine(); line != null; line = reader.readLine()){
 					String[] vertices = line.split(" ");  

@@ -17,13 +17,15 @@ import real.FacebookGraph;
 import real.PanzarasaGraph;
 import real.URVMailGraph;
 import util.FrequentSubgraphMiner;
+import util.FrequentSubgraphMinerGraMiWrapper;
 import util.FrequentSubgraphMinerTrivial;
 import util.GraphUtil;
 
 /***
  * 
- * This class implements the method K-Match following the description in Zou et al.'s paper to the best possible extent
- * The paper does not specify what algorithm to use for finding frequent subgraphs
+ * This class implements the method K-Match following the description in Zou et al.'s paper to the best possible extent.
+ * The paper does not specify what algorithm to use for finding frequent subgraphs.
+ * For convenience, we will wrap and use the existing GraMi searcher 
  *
  */
 
@@ -40,7 +42,7 @@ public class KMatchAnonymizer {
 		
 		UndirectedGraph<String, DefaultEdge> workingGraph = GraphUtil.cloneGraph(graph); 
 		
-		FrequentSubgraphMiner subgraphMiner = new FrequentSubgraphMinerTrivial();   // This is a placeholder until a real frequent subgraph mining method is available
+		FrequentSubgraphMiner subgraphMiner = new FrequentSubgraphMinerGraMiWrapper();   
 		
 		Set<Set<UndirectedGraph<String, DefaultEdge>>> allGroups = new TreeSet<>();
 		

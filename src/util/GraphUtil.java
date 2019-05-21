@@ -940,5 +940,44 @@ public class GraphUtil {
 		return graph.vertexSet();
 	}
 	
+	public static void generateMetisInput(UndirectedGraph<String, DefaultEdge> graph, String fileName, boolean weightedVertices) throws IOException {
+		UndirectedGraph<String, DefaultEdge> workingGraph = GraphUtil.shiftAndShuffleVertexIds(graph, 1, graph.vertexSet());   // Guarantee that vertex ids start at 1. Shuffle should cause no problem, even though it is not necessary here.
+		int maxDeg = -1;
+		if (weightedVertices) {
+			for (String v : graph.vertexSet())
+				if (graph.degreeOf(v) > maxDeg)
+					maxDeg = graph.degreeOf(v);
+			maxDeg++;   // So we get weight 1 for vertices of degree maxDeg, instead of 0
+		}
+		Writer out = new FileWriter(fileName, true);
+		if (weightedVertices)
+			out.append("" + workingGraph.vertexSet().size() + " " + workingGraph.edgeSet().size() + " 010 1" + NEW_LINE);
+		else
+			out.append("" + workingGraph.vertexSet().size() + " " + workingGraph.edgeSet().size() + NEW_LINE);
+		for (String v : workingGraph.vertexSet()) {
+			String line = ""; 
+			if (weightedVertices)
+				line += (maxDeg - workingGraph.degreeOf(v)) + " ";
+			for (String w : Graphs.neighborListOf(workingGraph, v))
+				line += w + " ";
+			out.append(line.trim() + NEW_LINE);
+		}
+		out.close();
+	}
+	
+	public static void generateGraMiInput(UndirectedGraph<String, DefaultEdge> graph, String fileName) throws IOException {
+		Writer out = new FileWriter(fileName, true);
+		out.append("# t 1" + NEW_LINE);
+		List<String> vertList = new ArrayList<>(graph.vertexSet());
+		Collections.sort(vertList);
+		for (int i = 0; i < vertList.size(); i++)
+			out.append("v " + i + " 1" + NEW_LINE);
+		for (int i = 0; i < vertList.size() - 1; i++)
+			for (int j = i + 1; j < vertList.size(); j++)
+				if (graph.containsEdge(vertList.get(i).toString(), vertList.get(j).toString()))
+					out.append("e " + i + " " + j + " 1" + NEW_LINE);
+		out.close();
+	}
+	
 }
 

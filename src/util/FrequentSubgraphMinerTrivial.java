@@ -9,8 +9,9 @@ import org.jgrapht.graph.SimpleGraph;
 
 /**
  * 
- * This class is a placeholder for real frequent subgraph mining methods, to be used for debugging other methods 
+ * This class is a placeholder for "real" frequent subgraph mining methods, to be used for debugging other methods 
  * that need this type of output. 
+ * 
  * For most graphs G=(V,E) (those where minSupport <= |E| <= (|V|*(|V| - 1)) / 2 - minSupport), 
  * it returns {{<v_i, v_j>_G | (v_i, v_j) \in E}, {<v_i, v_j>_G | (v_i, v_j) \notin E}}. 
  * Otherwise it returns {{<v_i, v_j>_G | (v_i, v_j) \in E}} if G is (almost) complete 
