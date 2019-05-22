@@ -86,7 +86,7 @@ public class Searcher<NodeType, EdgeType>
 	 * This constructor creates a Searcher without loading the graph from a file, 
 	 * but rather by cloning it from a JGraphT UndirectedGraph<String, DefaultEdge>
 	 * 
-	 * It is used by the class FrequentSubgraphMinerGraMiWrapper
+	 * It is used by the class WrapperGraMiFSM
 	 *   
 	 */
 	

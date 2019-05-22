@@ -19,9 +19,9 @@ import org.jgrapht.graph.SimpleGraph;
  *
  */
 
-public class FrequentSubgraphMinerTrivial implements FrequentSubgraphMiner {
+public class TrivialFrequentSubgraphMinerSingleLargeGraph implements FrequentSubgraphMinerSingleLargeGraph {
 
-	public FrequentSubgraphMinerTrivial() {
+	public TrivialFrequentSubgraphMinerSingleLargeGraph() {
 	}
 
 	@Override

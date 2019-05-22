@@ -342,7 +342,8 @@ public class GraMiGraph
 		// "Load" vertices
 		for (int i = 0; i < vertList.size(); i++) {
 			
-			final int label = Integer.parseInt(vertList.get(i));   // Taken from implementation of loadFromFile and adapted 
+			//final int label = Integer.parseInt(vertList.get(i));   // Taken from implementation of loadFromFile and adapted
+			final int label = 1;   // Taken from implementation of loadFromFile and adapted. We have no vertex labels 
 			
 			//////////////////////////////////////////////////////////
 			// Code taken verbatim from implementation of loadFromFile

@@ -84,7 +84,7 @@ protected static Map<String, List<String>> globalVAT;
 				partitions.add(GraphUtil.inducedSubgraph(graph, vertsXPart.get(pid)));
 			
 			// Perform the anonymization
-			getVAT(graph, partitions);
+			globalVAT = getVAT(graph, partitions);
 			alignBlocks(graph, globalVAT);
 			copyCrossingEdges(graph);
 			
@@ -95,9 +95,11 @@ protected static Map<String, List<String>> globalVAT;
 		}
 	}
 	
-	protected static void getVAT(UndirectedGraph<String, DefaultEdge> workingGraph, Set<UndirectedGraph<String, DefaultEdge>> group) {
+	protected static Map<String, List<String>> getVAT(UndirectedGraph<String, DefaultEdge> workingGraph, Set<UndirectedGraph<String, DefaultEdge>> group) {
 		
-		globalVAT = new TreeMap<>();
+		// TODO: Once the version in KMatchAnonymizerWrappingGraMi has been debugged, copy here and adapt to this class
+		
+		Map<String, List<String>> auxVAT = new TreeMap<>();
 		Set<String> vertsInVAT = new TreeSet<>();
 		
 		// All blocks in group must have the same number of vertices, otherwise dummy vertices need to be added
@@ -148,7 +150,7 @@ protected static Map<String, List<String>> globalVAT;
 		
 		List<String> newVATKeys = new ArrayList<>();
 		
-		// First row of VAT
+		// First row of VAT for this group
 		if (groupWideExistingDegrees.size() > 0) {
 			List<String> newRowVAT = new ArrayList<>();
 			int maxDeg = Collections.max(groupWideExistingDegrees);
@@ -178,7 +180,7 @@ protected static Map<String, List<String>> globalVAT;
 					newRowVAT.add(newEntry);
 					vertsInVAT.add(newEntry);
 				}
-				globalVAT.put(rowKey, newRowVAT);
+				auxVAT.put(rowKey, newRowVAT);
 			}
 		}
 		else {
@@ -211,11 +213,11 @@ protected static Map<String, List<String>> globalVAT;
 					newRowVAT.add(newEntry);
 					vertsInVAT.add(newEntry);
 				}
-				globalVAT.put(rowKey, newRowVAT);
+				auxVAT.put(rowKey, newRowVAT);
 			}
 		}
 		
-		// Next rows of VAT
+		// Next rows of VAT for this group
 		
 		boolean foundUntabulatedVertices = true;
 		
@@ -258,11 +260,12 @@ protected static Map<String, List<String>> globalVAT;
 					newRowVAT.add(newEntry);
 					vertsInVAT.add(newEntry);
 				}
-				globalVAT.put(rowKey, newRowVAT);
+				auxVAT.put(rowKey, newRowVAT);
 			}
 			
 		}
 		
+		return auxVAT;
 	}
 	
 	protected static void alignBlocks(UndirectedGraph<String, DefaultEdge> fullGraph, Map<String, List<String>> groupVAT) {

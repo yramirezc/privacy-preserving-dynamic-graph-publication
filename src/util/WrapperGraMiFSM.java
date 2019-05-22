@@ -8,11 +8,11 @@ import org.jgrapht.graph.DefaultEdge;
 import grami.search.Searcher;
 import grami.utilities.Settings;
 
-public class FrequentSubgraphMinerGraMiWrapper implements FrequentSubgraphMiner {
+public class WrapperGraMiFSM implements FrequentSubgraphMinerSingleLargeGraph {
 	
 	protected Searcher<String, String> gramiSearcher;
 
-	public FrequentSubgraphMinerGraMiWrapper() {
+	public WrapperGraMiFSM() {
 	}
 
 	@Override
@@ -41,6 +41,12 @@ public class FrequentSubgraphMinerGraMiWrapper implements FrequentSubgraphMiner 
 		
 		// TODO: Build return value from results of GraMi search
 		return null;
+	}
+	
+	public static void main(String [] args) {		
+		WrapperGraMiFSM wrapper = new WrapperGraMiFSM();
+		Set<Set<UndirectedGraph<String, DefaultEdge>>> frSubGr = wrapper.frequentSubgraphs(BarabasiAlbertGraphGenerator.newGraph(100, 0, 50, 10, 3), 10);
+		System.out.println(frSubGr.size());
 	}
 
 }

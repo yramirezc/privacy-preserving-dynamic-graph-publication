@@ -16,9 +16,9 @@ import org.jgrapht.graph.DefaultEdge;
 import real.FacebookGraph;
 import real.PanzarasaGraph;
 import real.URVMailGraph;
-import util.FrequentSubgraphMiner;
-import util.FrequentSubgraphMinerGraMiWrapper;
-import util.FrequentSubgraphMinerTrivial;
+import util.FrequentSubgraphMinerSingleLargeGraph;
+import util.WrapperGraMiFSM;
+import util.TrivialFrequentSubgraphMinerSingleLargeGraph;
 import util.GraphUtil;
 
 /***
@@ -42,7 +42,7 @@ public class KMatchAnonymizerWrappingGraMi {
 		
 		UndirectedGraph<String, DefaultEdge> workingGraph = GraphUtil.cloneGraph(graph); 
 		
-		FrequentSubgraphMiner subgraphMiner = new FrequentSubgraphMinerGraMiWrapper();   
+		FrequentSubgraphMinerSingleLargeGraph subgraphMiner = new WrapperGraMiFSM();   
 		
 		Set<Set<UndirectedGraph<String, DefaultEdge>>> allGroups = new TreeSet<>();
 		
