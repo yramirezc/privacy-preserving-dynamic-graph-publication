@@ -29,16 +29,16 @@ import util.GraphUtil;
  *
  */
 
-public class KMatchAnonymizer {
+public class KMatchAnonymizerWrappingGraMi {
 	
 	protected static Map<String, List<String>> globalVAT;
-
+	
 	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k) {
 		globalVAT = new TreeMap<>();
-		graphPartitioningAndBlockClustering(graph, k);
+		partitionAlignAndAnonymize(graph, k);
 	}
-	
-	protected static void graphPartitioningAndBlockClustering(UndirectedGraph<String, DefaultEdge> graph, int k) {
+
+	protected static void partitionAlignAndAnonymize(UndirectedGraph<String, DefaultEdge> graph, int k) {
 		
 		UndirectedGraph<String, DefaultEdge> workingGraph = GraphUtil.cloneGraph(graph); 
 		

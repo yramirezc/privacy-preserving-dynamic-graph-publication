@@ -17,7 +17,7 @@ public class URVMailGraph extends SimpleGraph<String, DefaultEdge> {
 		super(edgeClass);
 		try {
 			BufferedReader reader = new BufferedReader(new FileReader(new File("urv-email/urv-email.txt")));
-			for (String line = reader.readLine(); line != null; line = reader.readLine()){
+			for (String line = reader.readLine(); line != null; line = reader.readLine()) {
 				String[] vertices = line.split(" ");  
 				if (vertices.length != 3)
 					continue;
