@@ -593,38 +593,65 @@ public class GraphUtil {
 				graph.addEdge(v1, v2);
 		}
 	}
+	
+	public static UndirectedGraph<String, DefaultEdge> shiftVertexIds(UndirectedGraph<String, DefaultEdge> originalGraph, int offset, Set<String> verticesToKeep) {
+		
+		UndirectedGraph<String, DefaultEdge> newGraph = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
+		
+		int[] index = new int[verticesToKeep.size()];
+		for (int i = 0; i < index.length; i++) {
+			index[i] = i + offset;
+		}
+		
+		HashMap<String, String> mapping = new HashMap<>();
+		int ind = 0;
+		for (String v : verticesToKeep) {
+			mapping.put(v, index[ind]+"");
+			newGraph.addVertex(index[ind]+"");
+			ind++;
+		}
+		
+		for (String v1 : verticesToKeep) {
+			for (String v2 : verticesToKeep) {
+				if (originalGraph.containsEdge(v1,  v2))
+					newGraph.addEdge(mapping.get(v1), mapping.get(v2));
+			}
+		}
+		return newGraph;
+	}
 
 	/* YR (12/03/2019) Originally, this method was called transformRealSocNetIntoOurFormat.
 	   We have changed the name to better reflect what it does and the fact that it may 
-	   be called on any graph, not only real social graphs */ 
+	   be called on any graph, not only "real" social graphs */ 
 	
-	public static UndirectedGraph<String, DefaultEdge> shiftAndShuffleVertexIds(
-			UndirectedGraph<String, DefaultEdge> originalGraph, int numberOfattackers, 
-			Set<String> verticesToKeep) {
-		UndirectedGraph<String, DefaultEdge> result = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
-		SecureRandom random = new SecureRandom();
+	public static UndirectedGraph<String, DefaultEdge> shiftAndShuffleVertexIds(UndirectedGraph<String, DefaultEdge> originalGraph, int offset, Set<String> verticesToKeep) {
+		
+		UndirectedGraph<String, DefaultEdge> newGraph = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
+		
 		int[] index = new int[verticesToKeep.size()];
 		for (int i = 0; i < index.length; i++){
-			index[i] = i+numberOfattackers;
+			index[i] = i + offset;
 		}
+		
+		SecureRandom random = new SecureRandom();
 		HashMap<String, String> randomMapping = new HashMap<>();
 		int lastIndex = index.length;
-		for (String v : verticesToKeep){
+		for (String v : verticesToKeep) {
 			int chosen = random.nextInt(lastIndex);
 			randomMapping.put(v, index[chosen]+"");
-			result.addVertex(index[chosen]+"");
+			newGraph.addVertex(index[chosen]+"");
 			index[chosen] = index[lastIndex-1];
 			lastIndex--;
 			
 		}
-		for (String v1 : verticesToKeep){
-			for (String v2 : verticesToKeep){
-				//if (v1.equals(v2)) continue;
+		
+		for (String v1 : verticesToKeep) {
+			for (String v2 : verticesToKeep) {
 				if (originalGraph.containsEdge(v1,  v2))
-					result.addEdge(randomMapping.get(v1), randomMapping.get(v2));
+					newGraph.addEdge(randomMapping.get(v1), randomMapping.get(v2));
 			}
 		}
-		return result;
+		return newGraph;
 	}
 	
 	public static Set<String> getStratifiedSamplingPoolFromDegreeSequence(UndirectedGraph<String, DefaultEdge> graph, int minOrder, int maxOrder, boolean ascendingOrder) {
@@ -941,7 +968,7 @@ public class GraphUtil {
 	}
 	
 	public static void generateMetisInput(UndirectedGraph<String, DefaultEdge> graph, String fileName, boolean weightedVertices) throws IOException {
-		UndirectedGraph<String, DefaultEdge> workingGraph = GraphUtil.shiftAndShuffleVertexIds(graph, 1, graph.vertexSet());   // Guarantee that vertex ids start at 1. Shuffle should cause no problem, even though it is not necessary here.
+		
 		int maxDeg = -1;
 		if (weightedVertices) {
 			for (String v : graph.vertexSet())
@@ -949,16 +976,16 @@ public class GraphUtil {
 					maxDeg = graph.degreeOf(v);
 			maxDeg++;   // So we get weight 1 for vertices of degree maxDeg, instead of 0
 		}
-		Writer out = new FileWriter(fileName, true);
+		Writer out = new FileWriter(fileName, false);
 		if (weightedVertices)
-			out.append("" + workingGraph.vertexSet().size() + " " + workingGraph.edgeSet().size() + " 010 1" + NEW_LINE);
+			out.append("" + graph.vertexSet().size() + " " + graph.edgeSet().size() + " 010 1" + NEW_LINE);
 		else
-			out.append("" + workingGraph.vertexSet().size() + " " + workingGraph.edgeSet().size() + NEW_LINE);
-		for (String v : workingGraph.vertexSet()) {
+			out.append("" + graph.vertexSet().size() + " " + graph.edgeSet().size() + NEW_LINE);
+		for (String v : graph.vertexSet()) {
 			String line = ""; 
 			if (weightedVertices)
-				line += (maxDeg - workingGraph.degreeOf(v)) + " ";
-			for (String w : Graphs.neighborListOf(workingGraph, v))
+				line += (maxDeg - graph.degreeOf(v)) + " ";
+			for (String w : Graphs.neighborListOf(graph, v))
 				line += w + " ";
 			out.append(line.trim() + NEW_LINE);
 		}

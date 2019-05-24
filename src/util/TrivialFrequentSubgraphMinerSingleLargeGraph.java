@@ -1,6 +1,7 @@
 package util;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import org.jgrapht.UndirectedGraph;
@@ -25,13 +26,13 @@ public class TrivialFrequentSubgraphMinerSingleLargeGraph implements FrequentSub
 	}
 
 	@Override
-	public Set<Set<Set<String>>> vertexSetsOfFrequentSubgraphs(UndirectedGraph<String, DefaultEdge> graph, int minSupport) {
+	public List<List<Set<String>>> vertexSetsOfFrequentSubgraphs(UndirectedGraph<String, DefaultEdge> graph, int minSupport) {
 
-		Set<Set<Set<String>>> vertexSetsFrequentSubgraphs = new TreeSet<>();
+		List<List<Set<String>>> vertexSetsFrequentSubgraphs = new ArrayList<>();
 		ArrayList<String> vertList = new ArrayList<>(graph.vertexSet());
 		
 		if (graph.edgeSet().size() >= minSupport) {   // Return every K_2
-			Set<Set<String>> k2GraphSet = new TreeSet<>();
+			List<Set<String>> k2GraphSet = new ArrayList<>();
 			for (int i = 0; i < vertList.size() - 1; i++)
 				for (int j = i + 1; j < vertList.size(); j++)
 					if (graph.containsEdge(vertList.get(i), vertList.get(j))) {
@@ -44,7 +45,7 @@ public class TrivialFrequentSubgraphMinerSingleLargeGraph implements FrequentSub
 		}
 		
 		if ((graph.vertexSet().size() * (graph.vertexSet().size() - 1)) / 2 - graph.edgeSet().size() >= minSupport) {   // Return every N_2
-			Set<Set<String>> n2GraphSet = new TreeSet<>();
+			List<Set<String>> n2GraphSet = new ArrayList<>();
 			for (int i = 0; i < vertList.size() - 1; i++)
 				for (int j = i + 1; j < vertList.size(); j++)
 					if (!graph.containsEdge(vertList.get(i), vertList.get(j))) {
@@ -60,13 +61,13 @@ public class TrivialFrequentSubgraphMinerSingleLargeGraph implements FrequentSub
 	}
 
 	@Override
-	public Set<Set<UndirectedGraph<String, DefaultEdge>>> frequentSubgraphs(UndirectedGraph<String, DefaultEdge> graph,	int minSupport) {
+	public List<List<UndirectedGraph<String, DefaultEdge>>> frequentSubgraphs(UndirectedGraph<String, DefaultEdge> graph, int minSupport) {
 		
-		Set<Set<UndirectedGraph<String, DefaultEdge>>> frequentSubgraphs = new TreeSet<>();
+		List<List<UndirectedGraph<String, DefaultEdge>>> frequentSubgraphs = new ArrayList<>();
 		ArrayList<String> vertList = new ArrayList<>(graph.vertexSet());
 		
 		if (graph.edgeSet().size() >= minSupport) {   // Return every K_2
-			Set<UndirectedGraph<String, DefaultEdge>> k2GraphSet = new TreeSet<>();
+			List<UndirectedGraph<String, DefaultEdge>> k2GraphSet = new ArrayList<>();
 			for (int i = 0; i < vertList.size() - 1; i++)
 				for (int j = i + 1; j < vertList.size(); j++)
 					if (graph.containsEdge(vertList.get(i), vertList.get(j))) {
@@ -80,7 +81,7 @@ public class TrivialFrequentSubgraphMinerSingleLargeGraph implements FrequentSub
 		}
 		
 		if ((graph.vertexSet().size() * (graph.vertexSet().size() - 1)) / 2 - graph.edgeSet().size() >= minSupport) {   // Return every N_2
-			Set<UndirectedGraph<String, DefaultEdge>> n2GraphSet = new TreeSet<>();
+			List<UndirectedGraph<String, DefaultEdge>> n2GraphSet = new ArrayList<>();
 			for (int i = 0; i < vertList.size() - 1; i++)
 				for (int j = i + 1; j < vertList.size(); j++)
 					if (!graph.containsEdge(vertList.get(i), vertList.get(j))) {

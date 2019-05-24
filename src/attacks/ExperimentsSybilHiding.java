@@ -14,7 +14,7 @@ import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.generate.RandomGraphGenerator;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
-import anonymization.KMatchAnonymizerWrappingGraMi;
+import anonymization.KMatchAnonymizerUsingGraMi;
 import real.FacebookGraph;
 import real.PanzarasaGraph;
 import real.URVMailGraph;
@@ -202,7 +202,7 @@ public class ExperimentsSybilHiding {
 				// k-automorphism
 				
 				SimpleGraph<String, DefaultEdge> anonKAutomorphicGraphWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph);
-				KMatchAnonymizerWrappingGraMi.anonymizeGraph(anonKAutomorphicGraphWalkBased, k);
+				KMatchAnonymizerUsingGraMi.anonymizeGraph(anonKAutomorphicGraphWalkBased, k);
 				
 				FloydWarshallShortestPaths<String, DefaultEdge> floydKAutomorphicGraph = new FloydWarshallShortestPaths<>(anonKAutomorphicGraphWalkBased);			
 				Statistics.printStatisticsRobustSybilsExp(i, outKAutomorphismWalkBased, anonKAutomorphicGraphWalkBased, floydKAutomorphicGraph, fileNameOutKAutomorphismWalkBased, attackersCount, victimsCountWalkBased, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
@@ -210,7 +210,7 @@ public class ExperimentsSybilHiding {
 				// (k * (ell / 2))-automorphism
 				
 				SimpleGraph<String, DefaultEdge> anonKTimesHalfEllAutomorphicGraphWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph);
-				KMatchAnonymizerWrappingGraMi.anonymizeGraph(anonKTimesHalfEllAutomorphicGraphWalkBased, k * (attackersCount / 2));
+				KMatchAnonymizerUsingGraMi.anonymizeGraph(anonKTimesHalfEllAutomorphicGraphWalkBased, k * (attackersCount / 2));
 				
 				FloydWarshallShortestPaths<String, DefaultEdge> floydKTimesHalfEllAutomorphicGraph = new FloydWarshallShortestPaths<>(anonKTimesHalfEllAutomorphicGraphWalkBased);			
 				Statistics.printStatisticsRobustSybilsExp(i, outKTimesHalfEllWalkBased, anonKTimesHalfEllAutomorphicGraphWalkBased, floydKTimesHalfEllAutomorphicGraph, fileNameOutKTimesHalfEllAutomorphismWalkBased, attackersCount, victimsCountWalkBased, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
@@ -218,7 +218,7 @@ public class ExperimentsSybilHiding {
 				// (k * ell)-automorphism
 				
 				SimpleGraph<String, DefaultEdge> anonKTimesEllAutomorphicGraphWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph); 
-				KMatchAnonymizerWrappingGraMi.anonymizeGraph(anonKTimesEllAutomorphicGraphWalkBased, k * attackersCount);
+				KMatchAnonymizerUsingGraMi.anonymizeGraph(anonKTimesEllAutomorphicGraphWalkBased, k * attackersCount);
 				
 				FloydWarshallShortestPaths<String, DefaultEdge> floydKTimesEllAutomorphicGraph = new FloydWarshallShortestPaths<>(anonKTimesEllAutomorphicGraphWalkBased);			
 				Statistics.printStatisticsRobustSybilsExp(i, outKTimesEllWalkBased, anonKTimesEllAutomorphicGraphWalkBased, floydKTimesEllAutomorphicGraph, fileNameOutKTimesEllAutomorphismWalkBased, attackersCount, victimsCountWalkBased, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
@@ -392,21 +392,21 @@ public class ExperimentsSybilHiding {
 			
 			// k-automorphism
 			SimpleGraph<String, DefaultEdge> graphKAutomorphic = GraphUtil.cloneGraph(attackedGraph);
-			KMatchAnonymizerWrappingGraMi.anonymizeGraph(graphKAutomorphic, k);
+			KMatchAnonymizerUsingGraMi.anonymizeGraph(graphKAutomorphic, k);
 			FloydWarshallShortestPaths<String, DefaultEdge> floydKAutomorphic = new FloydWarshallShortestPaths<>(graphKAutomorphic);
 			Statistics.printStatisticsRobustSybilsExp(i, outKTimesEllAutomorphism, graphKAutomorphic, floydKAutomorphic, fileNameOutKTimesEllAutomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
 			
 			// (k * (attackerCount / 2))-automorphism
 			
 			SimpleGraph<String, DefaultEdge> graphKTimesHalfEllAutomorphic = GraphUtil.cloneGraph(attackedGraph);
-			KMatchAnonymizerWrappingGraMi.anonymizeGraph(graphKTimesHalfEllAutomorphic, k * (attackerCount / 2));
+			KMatchAnonymizerUsingGraMi.anonymizeGraph(graphKTimesHalfEllAutomorphic, k * (attackerCount / 2));
 			FloydWarshallShortestPaths<String, DefaultEdge> floydKTimesHalfEllAutomorphic = new FloydWarshallShortestPaths<>(graphKTimesHalfEllAutomorphic);
 			Statistics.printStatisticsRobustSybilsExp(i, outKTimesHalfEllAutomorphism, graphKTimesHalfEllAutomorphic, floydKTimesHalfEllAutomorphic, fileNameOutKTimesHalfEllAutomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
 			
 			// (k * attackerCount)-automorphism
 			
 			SimpleGraph<String, DefaultEdge> graphKTimesEllAutomorphic = GraphUtil.cloneGraph(attackedGraph);
-			KMatchAnonymizerWrappingGraMi.anonymizeGraph(graphKTimesEllAutomorphic, k * attackerCount);
+			KMatchAnonymizerUsingGraMi.anonymizeGraph(graphKTimesEllAutomorphic, k * attackerCount);
 			FloydWarshallShortestPaths<String, DefaultEdge> floydKTimesEllAutomorphic = new FloydWarshallShortestPaths<>(graphKTimesEllAutomorphic);
 			Statistics.printStatisticsRobustSybilsExp(i, outKAutomorphism, graphKTimesEllAutomorphic, floydKTimesEllAutomorphic, fileNameOutKAutomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
 		}

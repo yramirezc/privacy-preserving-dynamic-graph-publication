@@ -54,7 +54,8 @@ public class DFSSearch
         public void run() {
         	if(Settings.LimitedTime)
         	{
-        		System.out.format("Time's up!%n");
+        		if (Settings.verbose)   // YR: minimizing verbosity for background runs
+        			System.out.format("Time's up!%n");   
             	stopSearching();
         	}
         }
@@ -208,7 +209,8 @@ public class DFSSearch
 	
 	public void searchExistances()
 	{
-		System.out.println("Checking frequency for:\n"+qry.getListGraph());
+		if (Settings.verbose)   // YR: minimizing verbosity for background runs
+			System.out.println("Checking frequency for:\n"+qry.getListGraph());
 		
 		if(Settings.isApproximate)
 			numberOfIterations=new BigInteger("0");
@@ -226,7 +228,8 @@ public class DFSSearch
 		
 		if(min<minFreqThreshold)
 		{
-			System.out.println("Minimum variable size is less than the threshold, and it is: "+min);
+			if (Settings.verbose)   // YR: minimizing verbosity for background runs
+				System.out.println("Minimum variable size is less than the threshold, and it is: "+min);
 			return;
 		}
 		
@@ -291,7 +294,8 @@ public class DFSSearch
 			}
 			if(min<minFreqThreshold)
 			{
-				System.out.println("[Fast check] Minumum variable size is less than the threshold, and it is: "+min);
+				if (Settings.verbose)   // YR: minimizing verbosity for background runs
+					System.out.println("[Fast check] Minumum variable size is less than the threshold, and it is: "+min);
 				return;
 			}
 			
@@ -441,7 +445,8 @@ public class DFSSearch
 				//quick check 
 				if(result[index].getList().size()+tmp.size()<minFreqThreshold)
 				{
-					System.out.println("less than the threshold, and it is: "+(result[index].getList().size()+tmp.size()));
+					if (Settings.verbose)   // YR: minimizing verbosity for background runs
+						System.out.println("less than the threshold, and it is: "+(result[index].getList().size()+tmp.size()));
 					return;
 				}
 				if(Settings.isApproximate==true)
@@ -470,7 +475,8 @@ public class DFSSearch
 					{
 						if((result[index].getList().size()+(tmp.size()-j))<minFreqThreshold)
 						{
-							System.out.println("less than the threshold, and it is: "+result[index].getList().size()+(tmp.size()-j));
+							if (Settings.verbose)   // YR: minimizing verbosity for background runs
+								System.out.println("less than the threshold, and it is: "+result[index].getList().size()+(tmp.size()-j));
 							return;
 						}
 						

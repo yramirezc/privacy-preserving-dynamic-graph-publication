@@ -1,5 +1,6 @@
 package util;
 
+import java.util.List;
 import java.util.Set;
 
 import org.jgrapht.UndirectedGraph;
@@ -16,7 +17,7 @@ public class WrapperGraMiFSM implements FrequentSubgraphMinerSingleLargeGraph {
 	}
 
 	@Override
-	public Set<Set<UndirectedGraph<String, DefaultEdge>>> frequentSubgraphs(UndirectedGraph<String, DefaultEdge> graph,	int minSupport) {
+	public List<List<UndirectedGraph<String, DefaultEdge>>> frequentSubgraphs(UndirectedGraph<String, DefaultEdge> graph,	int minSupport) {
 		
 		// Create GraMi Searcher object from graph
 		gramiSearcher = new Searcher<String, String>(graph, minSupport, 1);
@@ -25,12 +26,18 @@ public class WrapperGraMiFSM implements FrequentSubgraphMinerSingleLargeGraph {
 		gramiSearcher.initialize();
 		gramiSearcher.search();
 		
+		System.out.println(gramiSearcher.result.toString());
+		
+		//
+		// TODO: Continue from here
+		//
+		
 		// TODO: Build return value from results of GraMi search
 		return null;
 	}
 
 	@Override
-	public Set<Set<Set<String>>> vertexSetsOfFrequentSubgraphs(UndirectedGraph<String, DefaultEdge> graph, int minSupport) {
+	public List<List<Set<String>>> vertexSetsOfFrequentSubgraphs(UndirectedGraph<String, DefaultEdge> graph, int minSupport) {
 		
 		// Create GraMi Searcher object from graph
 		gramiSearcher = new Searcher<String, String>(graph, minSupport, 1);
@@ -45,7 +52,7 @@ public class WrapperGraMiFSM implements FrequentSubgraphMinerSingleLargeGraph {
 	
 	public static void main(String [] args) {		
 		WrapperGraMiFSM wrapper = new WrapperGraMiFSM();
-		Set<Set<UndirectedGraph<String, DefaultEdge>>> frSubGr = wrapper.frequentSubgraphs(BarabasiAlbertGraphGenerator.newGraph(100, 0, 50, 10, 3), 10);
+		List<List<UndirectedGraph<String, DefaultEdge>>> frSubGr = wrapper.frequentSubgraphs(BarabasiAlbertGraphGenerator.newGraph(20, 0, 10, 5, 3), 20);
 		System.out.println(frSubGr.size());
 	}
 

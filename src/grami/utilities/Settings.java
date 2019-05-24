@@ -34,7 +34,7 @@ public class Settings
 	
 	public static boolean DISTINCTLABELS = true;
 	
-	public static boolean LimitedTime = true;
+	public static boolean LimitedTime = false;
 
 	public static boolean PRINT = false;
 	
@@ -48,4 +48,6 @@ public class Settings
 	
 		//the filename
 	public static String fileName = null;
+	
+	public static boolean verbose = true;   // YR: minimizing verbosity for background runs
 }

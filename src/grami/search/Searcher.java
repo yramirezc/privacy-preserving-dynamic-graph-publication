@@ -95,10 +95,11 @@ public class Searcher<NodeType, EdgeType>
 		this.distanceThreshold=shortestDistance;
 		singleGraph = new GraMiGraph(1,freqThreshold);
 		singleGraph.cloneJGraphTUndirectedGraph(jgraphtGraph);
-		this.path = "";   // TODO: See whether this has any effect
+		this.path = "";   // YR: TODO: See whether this has any effect
 		sortedFrequentLabels=singleGraph.getSortedFreqLabels();
 		freqEdgeLabels = singleGraph.getFreqEdgeLabels();
-		singleGraph.printFreqNodes();	
+		if (Settings.verbose)   // YR: minimizing verbosity for background runs
+			singleGraph.printFreqNodes();   	
         singleGraph.setShortestPaths_1hop();
 	}
 	
