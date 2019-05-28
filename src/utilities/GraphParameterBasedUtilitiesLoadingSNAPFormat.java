@@ -5,7 +5,7 @@ import org.jgrapht.UndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 import util.GraphUtil;
 
-public class SimpleUtilitiesLoadingSNAPFormat {
+public class GraphParameterBasedUtilitiesLoadingSNAPFormat {
 
 	public static void main(String[] args) {
 		
@@ -26,11 +26,11 @@ public class SimpleUtilitiesLoadingSNAPFormat {
 			originalURV = GraphUtil.loadSNAPFormat("urv-original.txt");
 		}
 		
-		double glbCCFacebookOrig = GraphUtil.computeGlobalClusteringCoefficient(originalFacebook);
+		double glbCCFacebookOrig = GraphParameterBasedUtilitiesJGraphT.globalClusteringCoefficient(originalFacebook);
 		System.out.println("Global CC original Facebook: " + glbCCFacebookOrig);
-		double glbCCPanzarasaOrig = GraphUtil.computeGlobalClusteringCoefficient(originalPanzarasa);
+		double glbCCPanzarasaOrig = GraphParameterBasedUtilitiesJGraphT.globalClusteringCoefficient(originalPanzarasa);
 		System.out.println("Global CC original Panzarasa: " + glbCCPanzarasaOrig);
-		double glbCCURVOrig = GraphUtil.computeGlobalClusteringCoefficient(originalURV);
+		double glbCCURVOrig = GraphParameterBasedUtilitiesJGraphT.globalClusteringCoefficient(originalURV);
 		System.out.println("Global CC original URV: " + glbCCURVOrig);
 		
 		for (String versionName : anonymizedVersions) {
@@ -46,17 +46,17 @@ public class SimpleUtilitiesLoadingSNAPFormat {
 				anonymizedURV = GraphUtil.loadSNAPFormat("urv-" + versionName + ".txt");
 			}
 						
-			double glbCCFacebookAnon = GraphUtil.computeGlobalClusteringCoefficient(anonymizedFacebook);
+			double glbCCFacebookAnon = GraphParameterBasedUtilitiesJGraphT.globalClusteringCoefficient(anonymizedFacebook);
 			System.out.println("Global CC anonymized Facebook: " + glbCCFacebookAnon);
 			double ratioGlobalCCFacebook = glbCCFacebookAnon / glbCCFacebookOrig;
 			System.out.println("Facebook ratio: " + ratioGlobalCCFacebook);
 			
-			double glbCCPanzarasaAnon = GraphUtil.computeGlobalClusteringCoefficient(anonymizedPanzarasa);
+			double glbCCPanzarasaAnon = GraphParameterBasedUtilitiesJGraphT.globalClusteringCoefficient(anonymizedPanzarasa);
 			System.out.println("Global CC anonymized Panzarasa: " + glbCCPanzarasaAnon);
 			double ratioGlobalCCPanzarasa = glbCCPanzarasaAnon / glbCCPanzarasaOrig;
 			System.out.println("Panzarasa ratio: " + ratioGlobalCCPanzarasa);
 			
-			double glbCCURVAnon = GraphUtil.computeGlobalClusteringCoefficient(anonymizedURV);
+			double glbCCURVAnon = GraphParameterBasedUtilitiesJGraphT.globalClusteringCoefficient(anonymizedURV);
 			System.out.println("Global CC anonymized URV: " + glbCCURVAnon);
 			double ratioGlobalCCURV = glbCCURVAnon / glbCCURVOrig;
 			System.out.println("URV ratio: " + ratioGlobalCCURV);

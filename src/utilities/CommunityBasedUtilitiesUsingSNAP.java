@@ -21,11 +21,11 @@ import java.lang.Math;
 
 import util.GraphUtil;
 
-public class CommunityBasedUtilitiesSNAP {
+public class CommunityBasedUtilitiesUsingSNAP {
 	
 	protected String uniquePrefixOriginal, uniquePrefixAnonymized;
 	
-	public CommunityBasedUtilitiesSNAP(String prefix) {
+	public CommunityBasedUtilitiesUsingSNAP(String prefix) {
 		uniquePrefixOriginal = prefix + "-original-";
 		uniquePrefixAnonymized = prefix + "-anonymized-";
 	}
@@ -372,7 +372,7 @@ public class CommunityBasedUtilitiesSNAP {
 		
 		String [] egoNetworkIds = new String[]{"414", "107", "698", "348", "686", "1684", "3980", "0", "3437", "1912"};
 		String [] anonymousVersions = new String[]{"oddcycle", "shortestcycle", "largestcycle"};
-		CommunityBasedUtilitiesSNAP utilityComputer = new CommunityBasedUtilitiesSNAP("");
+		CommunityBasedUtilitiesUsingSNAP utilityComputer = new CommunityBasedUtilitiesUsingSNAP("");
 		boolean numberCiclesGiven = true;
 		HashMap<String, Double> f1Values = new HashMap<>();
 		HashMap<String, HashMap<String, Double>> ratios = new HashMap<>();
@@ -562,7 +562,7 @@ public class CommunityBasedUtilitiesSNAP {
 		
 		String [] anonymizedVersions = new String[]{"anonymized-oddcycle", "anonymized-shortestcycle", "anonymized-largestcycle"};
 		
-		CommunityBasedUtilitiesSNAP utilityComputer = new CommunityBasedUtilitiesSNAP("");
+		CommunityBasedUtilitiesUsingSNAP utilityComputer = new CommunityBasedUtilitiesUsingSNAP("");
 		
 		HashSet<HashSet<String>> circles = null;
 		

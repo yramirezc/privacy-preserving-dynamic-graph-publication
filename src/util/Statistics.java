@@ -6,12 +6,14 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import org.jgrapht.UndirectedGraph;
+import org.jgrapht.alg.ConnectivityInspector;
 import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
 import attacks.SybilAttackSimulator;
 import net.vivin.GenericTreeNode;
 import test.AntiResolving;
+import utilities.GraphParameterBasedUtilitiesJGraphT;
 
 public class Statistics {
 	public static final String NEW_LINE = System.getProperty("line.separator");
@@ -476,6 +478,31 @@ public class Statistics {
 						removedEdges++;
 		
 		String lineToAppend = index + " \t " + successProb + " \t " + addedEdges + " \t " + removedEdges + NEW_LINE;
+		out.append(lineToAppend);
+		out.flush();
+	}
+	
+	// For one parameter combination of the sybil hiding experiment
+	public static void printStatisticsSybilHidingExp(int index, Writer out, UndirectedGraph<String, DefaultEdge> perturbedGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydPerturbed, String uniqueIdentifier,
+			int attackersSize, int victimsSize, SybilAttackSimulator attackSimulator, UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydOriginal) throws IOException {
+		
+		double successProb = attackSimulator.successProbability(attackersSize, victimsSize, perturbedGraph, originalGraph);
+		
+		int addedEdges = GraphParameterBasedUtilitiesJGraphT.countEdgeAdditions(originalGraph, perturbedGraph);		
+		int removedEdges = GraphParameterBasedUtilitiesJGraphT.countEdgeRemovals(originalGraph, perturbedGraph);
+		
+		ConnectivityInspector<String, DefaultEdge> connPert = new ConnectivityInspector<>(perturbedGraph);
+		String deltaDiameter = "Inf", deltaEffDiameter = "Inf", deltaRadius = "Inf";
+		if (connPert.isGraphConnected()) {   // originalGraph is known to be connected
+			deltaDiameter = "" + GraphParameterBasedUtilitiesJGraphT.deltaDiameter(originalGraph, floydOriginal, perturbedGraph, floydPerturbed);
+			deltaEffDiameter = "" + GraphParameterBasedUtilitiesJGraphT.deltaEffectiveDiameter(originalGraph, floydOriginal, perturbedGraph, floydPerturbed);
+			deltaRadius = "" + GraphParameterBasedUtilitiesJGraphT.deltaRadius(originalGraph, floydOriginal, perturbedGraph, floydPerturbed);
+		}
+		
+		double deltaCC = GraphParameterBasedUtilitiesJGraphT.deltaGlobalClusteringCoefficient(originalGraph, perturbedGraph);
+		double cosDD = GraphParameterBasedUtilitiesJGraphT.cosineSortedDegreeDistributions(originalGraph, perturbedGraph);
+		
+		String lineToAppend = index + "\t" + successProb + "\t" + addedEdges + "\t" + removedEdges + "\t" + deltaDiameter + "\t" + deltaEffDiameter + "\t" + deltaRadius + "\t" + deltaCC + "\t" + cosDD + NEW_LINE;
 		out.append(lineToAppend);
 		out.flush();
 	}

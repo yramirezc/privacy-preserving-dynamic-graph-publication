@@ -239,7 +239,7 @@ public class ExperimentsRobustSybils {
 		
 		int[] mValues = new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 		
-		int seedTypeId = 3;   // By default, the seed graph is an ER random graph with density 0.3
+		int seedTypeId = 3;   // By default, the seed graph is an ER random graph with density 0.5
 		
 		int attackType = 0;   // Run the original walk-based attack by default
 		
