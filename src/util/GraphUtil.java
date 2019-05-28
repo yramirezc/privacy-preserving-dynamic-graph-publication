@@ -594,7 +594,7 @@ public class GraphUtil {
 		}
 	}
 	
-	public static UndirectedGraph<String, DefaultEdge> shiftVertexIds(UndirectedGraph<String, DefaultEdge> originalGraph, int offset, Set<String> verticesToKeep) {
+	public static UndirectedGraph<String, DefaultEdge> cloneWithShiftedVertexIds(UndirectedGraph<String, DefaultEdge> originalGraph, int offset, Set<String> verticesToKeep) {
 		
 		UndirectedGraph<String, DefaultEdge> newGraph = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
 		
@@ -618,6 +618,24 @@ public class GraphUtil {
 			}
 		}
 		return newGraph;
+	}
+	
+	public static void shiftVertexIds(UndirectedGraph<String, DefaultEdge> originalGraph, int offset, Set<String> verticesToKeep) {
+		
+		UndirectedGraph<String, DefaultEdge> newGraph = cloneWithShiftedVertexIds(originalGraph, offset, verticesToKeep);
+		
+		Set<String> copyOrigVerts = new TreeSet<>(originalGraph.vertexSet());
+		originalGraph.removeAllVertices(copyOrigVerts);
+		
+		for (String v : newGraph.vertexSet())
+			originalGraph.addVertex(v);
+		
+		List<String> newVertexSet = new ArrayList<>(newGraph.vertexSet());
+		for (int i = 0; i < newVertexSet.size() - 1; i++)
+			for (int j = i + 1; j < newVertexSet.size(); j++)
+				if (newGraph.containsEdge(newVertexSet.get(i), newVertexSet.get(j)))
+					originalGraph.addEdge(newVertexSet.get(i), newVertexSet.get(j));
+		
 	}
 
 	/* YR (12/03/2019) Originally, this method was called transformRealSocNetIntoOurFormat.

@@ -50,7 +50,7 @@ protected static Map<String, List<String>> globalVAT;
 			
 			// Generate METIS input
 			if (graph.containsVertex(0+""))
-				graph = GraphUtil.shiftVertexIds(graph, 1, graph.vertexSet());   // Guarantee that vertex ids start at 1
+				GraphUtil.shiftVertexIds(graph, 1, graph.vertexSet());   // Guarantee that vertex ids start at 1
 			if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
 				GraphUtil.generateMetisInput(graph, "C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph.txt", false);
 			else
@@ -260,32 +260,35 @@ protected static Map<String, List<String>> globalVAT;
 							possibleRowKeys.add(v);
 					}
 				
-				// Initialize new row entry in VAT with one of the vertices found
-				String rowKey = possibleRowKeys.get(random.nextInt(possibleRowKeys.size()));
-				newRowVAT.add(rowKey);
-				newVATKeys.add(rowKey);
-				vertsInVAT.add(rowKey);
-				
-				// Find a highest-degree non-in-VAT vertex in every other block and add it to current row of VAT
-				for (int i = 1; i < group.size(); i++) {
-					List<String> possibleNewEntries = new ArrayList<>();
-					maxDeg = -1;
-					for (String v : group.get(i).vertexSet())
-						if (!vertsInVAT.contains(v)) {
-							untabulatedVerticesFound = true;
-							if (group.get(i).degreeOf(v) > maxDeg) {
-								possibleNewEntries = new ArrayList<>();
-								possibleNewEntries.add(v);
-								maxDeg = group.get(i).degreeOf(v);
+				if (untabulatedVerticesFound) {
+					// Initialize new row entry in VAT with one of the vertices found
+					String rowKey = possibleRowKeys.get(random.nextInt(possibleRowKeys.size()));
+					newRowVAT.add(rowKey);
+					newVATKeys.add(rowKey);
+					vertsInVAT.add(rowKey);
+					
+					// Find a highest-degree non-in-VAT vertex in every other block and add it to current row of VAT
+					for (int i = 1; i < group.size(); i++) {
+						List<String> possibleNewEntries = new ArrayList<>();
+						maxDeg = -1;
+						for (String v : group.get(i).vertexSet())
+							if (!vertsInVAT.contains(v)) {
+								untabulatedVerticesFound = true;
+								if (group.get(i).degreeOf(v) > maxDeg) {
+									possibleNewEntries = new ArrayList<>();
+									possibleNewEntries.add(v);
+									maxDeg = group.get(i).degreeOf(v);
+								}
+								else if (group.get(i).degreeOf(v) == maxDeg)
+									possibleNewEntries.add(v);
 							}
-							else if (group.get(i).degreeOf(v) == maxDeg)
-								possibleNewEntries.add(v);
-						}
-					String newEntry = possibleNewEntries.get(random.nextInt(possibleNewEntries.size()));
-					newRowVAT.add(newEntry);
-					vertsInVAT.add(newEntry);
+						// Unless some mistake was made in the dummy vertex inclusion, there must always be a vertex available here
+						String newEntry = possibleNewEntries.get(random.nextInt(possibleNewEntries.size()));
+						newRowVAT.add(newEntry);
+						vertsInVAT.add(newEntry);
+					}
+					auxVAT.put(rowKey, newRowVAT);
 				}
-				auxVAT.put(rowKey, newRowVAT);
 			}
 			
 		}
@@ -297,30 +300,30 @@ protected static Map<String, List<String>> globalVAT;
 		
 		List<String> vatKeys = new ArrayList<>(groupVAT.keySet());
 		
+		// First, add any dummy vertex in the VAT to fullGraph  
+		for (int i = 0; i < vatKeys.size(); i++)
+			for (int j = 0; j < groupVAT.get(vatKeys.get(i)).size(); j++)
+				if (!fullGraph.containsVertex(groupVAT.get(vatKeys.get(i)).get(j))) 
+					fullGraph.addVertex(groupVAT.get(vatKeys.get(i)).get(j));
+		
+		// Then, perform the alignment directly on fullGraph
 		for (int i = 0; i < vatKeys.size() - 1; i++)
 			for (int j = i + 1; j < vatKeys.size(); j++) {
-				// Check if the edge exists in some block
-				boolean edgeMustBeCopied = false;
-				for (int k = 0; !edgeMustBeCopied && k < groupVAT.get(vatKeys.get(i)).size(); k++)
-					edgeMustBeCopied = edgeMustBeCopied 
-						|| (fullGraph.containsVertex(groupVAT.get(vatKeys.get(i)).get(k)) 
-							&& fullGraph.containsVertex(groupVAT.get(vatKeys.get(j)).get(k)) 
-							&& fullGraph.containsEdge(groupVAT.get(vatKeys.get(i)).get(k), groupVAT.get(vatKeys.get(j)).get(k)));
-				
-				if (edgeMustBeCopied) {
-					for (int k = 0; k < groupVAT.get(vatKeys.get(i)).size(); k++) {
-						
-						// This is where dummy vertices are effectively added to the graph
-						if (!fullGraph.containsVertex(groupVAT.get(vatKeys.get(i)).get(k)))
-							fullGraph.addVertex(groupVAT.get(vatKeys.get(i)).get(k));
-						if (!fullGraph.containsVertex(groupVAT.get(vatKeys.get(j)).get(k)))
-							fullGraph.addVertex(groupVAT.get(vatKeys.get(j)).get(k));
-						
-						fullGraph.addEdge(groupVAT.get(vatKeys.get(i)).get(k), groupVAT.get(vatKeys.get(j)).get(k));
-					}
+				// Check if the edge exists in some block and doesn't exist in some other
+				boolean edgeFound = false, nonEdgeFound = false;
+				for (int k = 0; (!edgeFound || !nonEdgeFound) && k < groupVAT.get(vatKeys.get(i)).size(); k++) {
+					if (fullGraph.containsEdge(groupVAT.get(vatKeys.get(i)).get(k), groupVAT.get(vatKeys.get(j)).get(k)))
+						edgeFound = true; 
+					if (!fullGraph.containsEdge(groupVAT.get(vatKeys.get(i)).get(k), groupVAT.get(vatKeys.get(j)).get(k)))
+						nonEdgeFound = true;
 				}
+				
+				// Add edges to align blocks
+				if (edgeFound && nonEdgeFound) 
+					for (int k = 0; k < groupVAT.get(vatKeys.get(i)).size(); k++) 
+						fullGraph.addEdge(groupVAT.get(vatKeys.get(i)).get(k), groupVAT.get(vatKeys.get(j)).get(k));
 			}
-					
+		
 	}
 	
 	protected static void copyCrossingEdges(UndirectedGraph<String, DefaultEdge> graph) {
@@ -332,8 +335,8 @@ protected static Map<String, List<String>> globalVAT;
 					for (int q = j + 1; q < globalVAT.get(vatKeys.get(p)).size(); q++) 
 						if (graph.containsEdge(globalVAT.get(vatKeys.get(i)).get(j), globalVAT.get(vatKeys.get(p)).get(q))) {
 							int len = globalVAT.get(vatKeys.get(i)).size();
-							for (int k = 1; k < len; k++)
-								graph.addEdge(globalVAT.get(vatKeys.get(i)).get((j + k) % len), globalVAT.get(vatKeys.get(p)).get((q + k) % len));
+							for (int offset = 1; offset < len; offset++) 
+									graph.addEdge(globalVAT.get(vatKeys.get(i)).get((j + offset) % len), globalVAT.get(vatKeys.get(p)).get((q + offset) % len));
 						}
 	}
 	
@@ -344,14 +347,17 @@ protected static Map<String, List<String>> globalVAT;
 		int edgeAdditions = 0;
 		for (int i = 0; i < vatKeys.size() - 1; i++)
 			for (int j = i + 1; j < vatKeys.size(); j++) {
-				// Check if the edge exists in some block
-				boolean edgeMustBeCopied = false;
-				for (int k = 0; !edgeMustBeCopied && k < groupVAT.get(vatKeys.get(i)).size(); k++)
-					edgeMustBeCopied = edgeMustBeCopied 
-										|| (workingGraph.containsVertex(groupVAT.get(vatKeys.get(i)).get(k)) 
-											&& workingGraph.containsVertex(groupVAT.get(vatKeys.get(j)).get(k)) 
-											&& workingGraph.containsEdge(groupVAT.get(vatKeys.get(i)).get(k), groupVAT.get(vatKeys.get(j)).get(k)));
-				if (edgeMustBeCopied) {
+				// Check if the edge exists in some block and doesn't exist in some other
+				boolean edgeFound = false, nonEdgeFound = false;
+				for (int k = 0; (!edgeFound || !nonEdgeFound) && k < groupVAT.get(vatKeys.get(i)).size(); k++) {
+					if (workingGraph.containsVertex(groupVAT.get(vatKeys.get(i)).get(k)) && workingGraph.containsVertex(groupVAT.get(vatKeys.get(j)).get(k)) 
+						&& workingGraph.containsEdge(groupVAT.get(vatKeys.get(i)).get(k), groupVAT.get(vatKeys.get(j)).get(k)))
+						edgeFound = true;
+					if (!workingGraph.containsVertex(groupVAT.get(vatKeys.get(i)).get(k)) || !workingGraph.containsVertex(groupVAT.get(vatKeys.get(j)).get(k)) 
+						|| !workingGraph.containsEdge(groupVAT.get(vatKeys.get(i)).get(k), groupVAT.get(vatKeys.get(j)).get(k)))
+						nonEdgeFound = true;
+				}
+				if (edgeFound && nonEdgeFound) {
 					for (int k = 0; k < groupVAT.get(vatKeys.get(i)).size(); k++)
 						if (!workingGraph.containsVertex(groupVAT.get(vatKeys.get(i)).get(k))
 							|| !workingGraph.containsVertex(groupVAT.get(vatKeys.get(j)).get(k))
@@ -366,22 +372,20 @@ protected static Map<String, List<String>> globalVAT;
 		if (countCrossingEdges) {
 			int blockCount = groupVAT.get(groupVAT.keySet().iterator().next()).size();
 			List<Set<String>> vertexSetsXBlock = new ArrayList<>();
-			List<Set<String>> neighboursXBlock = new ArrayList<>();
-			for (int i = 0; i < blockCount; i++) {
+			for (int i = 0; i < blockCount; i++) 
 				vertexSetsXBlock.add(new TreeSet<String>());
-				neighboursXBlock.add(new TreeSet<String>());
-			}
 			for (String rowKey : groupVAT.keySet())
 				for (int i = 0; i < blockCount; i++) {
 					String vCell = groupVAT.get(rowKey).get(i);
 					vertexSetsXBlock.get(i).add(vCell);
-					neighboursXBlock.get(i).addAll(Graphs.neighborListOf(workingGraph, vCell));
 				}
 			int sumCrossEdges = 0;
 			for (int i = 0; i < blockCount; i++) {
-				Set<String> neighbours = neighboursXBlock.get(i);
-				neighbours.removeAll(vertexSetsXBlock.get(i));
-				sumCrossEdges += neighbours.size();
+				for (String v : vertexSetsXBlock.get(i)) {
+					Set<String> neighbours = new TreeSet<>(Graphs.neighborListOf(workingGraph, v));
+					neighbours.removeAll(vertexSetsXBlock.get(i));
+					sumCrossEdges += neighbours.size();
+				}
 			}
 			costCrossingEdges = ((blockCount - 1) * sumCrossEdges) / 2;
 		}
@@ -391,43 +395,57 @@ protected static Map<String, List<String>> globalVAT;
 	
 	public static void main(String [] args) {
 		
-		UndirectedGraph<String, DefaultEdge> graph = null; 
-		if (args.length == 1 && args[0].equals("-facebook"))
-			graph = new FacebookGraph(DefaultEdge.class);
-		else if (args.length == 1 && args[0].equals("-panzarasa"))
-			graph = new PanzarasaGraph(DefaultEdge.class);
-		else if (args.length == 1 && args[0].equals("-urv"))			
-			graph = new URVMailGraph(DefaultEdge.class);
-		else
-			graph = BarabasiAlbertGraphGenerator.newGraph(51, 0, 20, 10, 3);   // 51 to make partitions not have the same number of vertices and force the addition of dummies
+		for (int iter = 0; iter < 1000; iter++) {
+			
+			System.out.println("Iteration # " + iter);
+			
+			UndirectedGraph<String, DefaultEdge> graph = null; 
+			if (args.length == 1 && args[0].equals("-facebook"))
+				graph = new FacebookGraph(DefaultEdge.class);
+			else if (args.length == 1 && args[0].equals("-panzarasa"))
+				graph = new PanzarasaGraph(DefaultEdge.class);
+			else if (args.length == 1 && args[0].equals("-urv"))			
+				graph = new URVMailGraph(DefaultEdge.class);
+			else
+				graph = BarabasiAlbertGraphGenerator.newGraph(51, 0, 20, 10, 3);   // 51 to make partitions not have the same number of vertices and force the addition of dummies
+			
+			ConnectivityInspector<String, DefaultEdge> connectivity = new ConnectivityInspector<>(graph);
+			List<Set<String>> connComp = connectivity.connectedSets();
+			
+			Set<String> vertsMainComponent = null;
+			int maximum = 0;
+			for (Set<String> comp : connComp) {
+				if (comp.size() > maximum) {
+					maximum = comp.size();
+					vertsMainComponent = new HashSet<String>(comp);
+				}
+			}
+			
+			if (vertsMainComponent.size() < graph.vertexSet().size())
+				graph = GraphUtil.inducedSubgraph(graph, vertsMainComponent);
+			
+			connectivity = new ConnectivityInspector<>(graph);
+			if (!connectivity.isGraphConnected()) 
+				throw new RuntimeException();
+			
+			int origEdgeCount = graph.edgeSet().size(), origVertexCount = graph.vertexSet().size();
 		
-		ConnectivityInspector<String, DefaultEdge> connectivity = new ConnectivityInspector<>(graph);
-		List<Set<String>> connComp = connectivity.connectedSets();
-		
-		Set<String> vertsMainComponent = null;
-		int maximum = 0;
-		for (Set<String> comp : connComp) {
-			if (comp.size() > maximum) {
-				maximum = comp.size();
-				vertsMainComponent = new HashSet<String>(comp);
+			// Apply the method with k \in {2,...,10}
+			for (int k = 2; k <= 10; k++) {
+				
+				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
+				anonymizeGraph(clone, k);
+				
+				// Report effect of anonymization on the graph
+				System.out.println("k = " + k);
+				System.out.println("\tOriginal vertex count: " + origVertexCount);
+				System.out.println("\tFinal vertex count: " + clone.vertexSet().size());
+				System.out.println("\tDelta: " + (clone.vertexSet().size() - origVertexCount) + " (" + ((double)(clone.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+				System.out.println("\tOriginal edge count: " + origEdgeCount);
+				System.out.println("\tFinal edge count: " + clone.edgeSet().size());
+				System.out.println("\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
 			}
 		}
-		
-		if (vertsMainComponent.size() < graph.vertexSet().size())
-			graph = GraphUtil.inducedSubgraph(graph, vertsMainComponent);
-		
-		connectivity = new ConnectivityInspector<>(graph);
-		if (!connectivity.isGraphConnected()) 
-			throw new RuntimeException();
-		
-		int origEdgeCount = graph.edgeSet().size();
-		
-		// Apply the method with k=2
-		anonymizeGraph(graph, 2);
-		
-		// Report effect of anonymization on the graph
-		System.out.println("Number of edge modifications: " + Math.abs(graph.edgeSet().size() - origEdgeCount));
-		
 	}
 	
 }
