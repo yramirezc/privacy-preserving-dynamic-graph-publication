@@ -464,9 +464,9 @@ public class Statistics {
 	
 	// For one robust sybil attacker
 	public static void printStatisticsRobustSybilsExp(int index, Writer out, UndirectedGraph<String, DefaultEdge> graph, FloydWarshallShortestPaths<String, DefaultEdge> floyd, String uniqueIdentifier,
-			int attackersSize, int victimsSize, SybilAttackSimulator attackSimulator, UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> originalFloyd) throws IOException {
+			int attackerCount, int victimCount, SybilAttackSimulator attackSimulator, UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> originalFloyd) throws IOException {
 		
-		double successProb = attackSimulator.successProbability(attackersSize, victimsSize, graph, originalGraph);
+		double successProb = attackSimulator.successProbability(attackerCount, victimCount, graph, originalGraph);
 		
 		double addedEdges = 0, removedEdges = 0;
 		for (String v1 : graph.vertexSet())
@@ -484,9 +484,9 @@ public class Statistics {
 	
 	// For one parameter combination of the sybil hiding experiment
 	public static void printStatisticsSybilHidingExp(int index, Writer out, UndirectedGraph<String, DefaultEdge> perturbedGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydPerturbed, String uniqueIdentifier,
-			int attackersSize, int victimsSize, SybilAttackSimulator attackSimulator, UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydOriginal) throws IOException {
+			int attackerCount, int victimCount, SybilAttackSimulator attackSimulator, UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydOriginal) throws IOException {
 		
-		double successProb = attackSimulator.successProbability(attackersSize, victimsSize, perturbedGraph, originalGraph);
+		double successProb = attackSimulator.successProbability(attackerCount, victimCount, perturbedGraph, originalGraph);
 		
 		int addedEdges = GraphParameterBasedUtilitiesJGraphT.countEdgeAdditions(originalGraph, perturbedGraph);		
 		int removedEdges = GraphParameterBasedUtilitiesJGraphT.countEdgeRemovals(originalGraph, perturbedGraph);
@@ -499,17 +499,18 @@ public class Statistics {
 			deltaRadius = "" + GraphParameterBasedUtilitiesJGraphT.deltaRadius(originalGraph, floydOriginal, perturbedGraph, floydPerturbed);
 		}
 		
-		double deltaCC = GraphParameterBasedUtilitiesJGraphT.deltaGlobalClusteringCoefficient(originalGraph, perturbedGraph);
+		double deltaGlobalCC = GraphParameterBasedUtilitiesJGraphT.deltaGlobalClusteringCoefficient(originalGraph, perturbedGraph);
+		double deltaAvgdLocalCC = GraphParameterBasedUtilitiesJGraphT.deltaAvgLocalClusteringCoefficient(originalGraph, perturbedGraph);
 		double cosDD = GraphParameterBasedUtilitiesJGraphT.cosineSortedDegreeDistributions(originalGraph, perturbedGraph);
 		
-		String lineToAppend = index + "\t" + successProb + "\t" + addedEdges + "\t" + removedEdges + "\t" + deltaDiameter + "\t" + deltaEffDiameter + "\t" + deltaRadius + "\t" + deltaCC + "\t" + cosDD + NEW_LINE;
+		String lineToAppend = index + "\t" + successProb + "\t" + addedEdges + "\t" + removedEdges + "\t" + deltaDiameter + "\t" + deltaEffDiameter + "\t" + deltaRadius + "\t" + deltaGlobalCC + "\t" + deltaAvgdLocalCC + "\t" + cosDD + NEW_LINE;
 		out.append(lineToAppend);
 		out.flush();
 	}
 	
 	// This is the version for the (k,1)-adjacency experiments (actually it was not used afterwards, at least not in the ones in the paper)
 	public static void printStatisticsK1(int index, Writer out, UndirectedGraph<String, DefaultEdge> graph, 
-			FloydWarshallShortestPaths<String, DefaultEdge> floyd, int attackersSize, int victimsSize, int k, 
+			FloydWarshallShortestPaths<String, DefaultEdge> floyd, int attackerCount, int victimCount, int k, 
 			UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> originalFloyd) throws IOException {
 		double diameterAnonymized = GraphUtil.computeDiameter(graph, floyd);
 		double diameterOriginal = GraphUtil.computeDiameter(originalGraph, originalFloyd);
@@ -517,7 +518,7 @@ public class Statistics {
 		double radiusAnonymized = GraphUtil.computeRadius(graph, floyd);
 		double radiusOriginal = GraphUtil.computeRadius(originalGraph, originalFloyd);
 		double deltaRadius = radiusOriginal - radiusAnonymized;
-		double successRate = getSuccessRate(attackersSize, victimsSize, graph, originalGraph);
+		double successRate = getSuccessRate(attackerCount, victimCount, graph, originalGraph);
 		double addedEdges = graph.edgeSet().size()-originalGraph.edgeSet().size();
 		int addedEdgesLowerBound = addedEdgesLowerBoundK1(originalGraph, k);
 		int addedEdgesUpperBound = addedEdgesUpperBoundK1(originalGraph, k);

@@ -78,11 +78,11 @@ public class ExperimentsRobustSybils {
 		return (int)(density*vexnum*(vexnum-1)/2);
 	}
 	
-	public static void oneRunExperimentRobustSybilsErdosRenyiRandomGraphs(int n, int m, int attackType, int attackersCount, int maxEditDist, String fileNameOutOriginalWalkBased,
+	public static void oneRunExperimentRobustSybilsErdosRenyiRandomGraphs(int n, int m, int attackType, int attackerCount, int maxEditDist, String fileNameOutOriginalWalkBased,
 			String fileNameOutDistAnonymizationWalkBased, String fileNameOutDistTransformationWalkBased, String fileNameOutAdjTransformationWalkBased, 
 			String fileNamePrefixesOutsRandomPerturbations) throws NoSuchAlgorithmException, IOException {
 		
-		if (attackersCount > n) 
+		if (attackerCount > n) 
 			throw new IllegalArgumentException("The number of attackers cannot be higher " + "than the number of vertices");
 		
 		Writer outOriginalWalkBased = new FileWriter(fileNameOutOriginalWalkBased+".DAT", true);
@@ -99,14 +99,14 @@ public class ExperimentsRobustSybils {
 			outsRandomPerturbations[pct] = new FileWriter(fileNamesOutsRandomPerturbations[pct] + ".DAT", true);
 		}
 		
-		final int startingVertex = attackersCount;
+		final int startingVertex = attackerCount;
 		
-		int victimsCountWalkBased = attackersCount;
-		if (victimsCountWalkBased == 0)
-			victimsCountWalkBased = 1;
+		int victimCount = attackerCount;
+		if (victimCount == 0)
+			victimCount = 1;
 		
-		if (attackersCount + victimsCountWalkBased > n)
-			victimsCountWalkBased = n - attackersCount;
+		if (attackerCount + victimCount > n)
+			victimCount = n - attackerCount;
 		
 		SybilAttackSimulator attackSimulator = null;
 		
@@ -156,7 +156,7 @@ public class ExperimentsRobustSybils {
 				
 				do {
 					
-					VertexFactory<String> vertexFactory = new VertexFactory<String>(){
+					VertexFactory<String> vertexFactory = new VertexFactory<String>() {
 						int i = startingVertex;
 						
 						@Override
@@ -172,14 +172,14 @@ public class ExperimentsRobustSybils {
 					RandomGraphGenerator<String, DefaultEdge> generator = new RandomGraphGenerator<>(n, m);			
 					generator.generateGraph(walkBasedAttackedGraph, vertexFactory, null);
 					
-					attackSimulator.simulateAttackerSubgraphCreation(walkBasedAttackedGraph, attackersCount, victimsCountWalkBased);
+					attackSimulator.simulateAttackerSubgraphCreation(walkBasedAttackedGraph, attackerCount, victimCount);
 					
 					connInspector = new ConnectivityInspector<>(walkBasedAttackedGraph);
 					
 				} while (!connInspector.isGraphConnected());
 				
 				FloydWarshallShortestPaths<String, DefaultEdge> floydOriginalWalkBasedAttackedGraph = new FloydWarshallShortestPaths<>(walkBasedAttackedGraph);
-				Statistics.printStatisticsRobustSybilsExp(i, outOriginalWalkBased, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph, fileNameOutOriginalWalkBased, attackersCount, victimsCountWalkBased, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
+				Statistics.printStatisticsRobustSybilsExp(i, outOriginalWalkBased, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph, fileNameOutOriginalWalkBased, attackerCount, victimCount, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
 				
 				// Random perturbations
 				
@@ -189,7 +189,7 @@ public class ExperimentsRobustSybils {
 					GraphUtil.flipRandomEdges(flipCount, randomlyPerturbedGraphWalkBased);
 					
 					FloydWarshallShortestPaths<String, DefaultEdge> floydRandomlyPerturtbedGraph = new FloydWarshallShortestPaths<>(randomlyPerturbedGraphWalkBased);			
-					Statistics.printStatisticsRobustSybilsExp(i, outsRandomPerturbations[pct], randomlyPerturbedGraphWalkBased, floydRandomlyPerturtbedGraph, fileNamesOutsRandomPerturbations[pct], attackersCount, victimsCountWalkBased, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
+					Statistics.printStatisticsRobustSybilsExp(i, outsRandomPerturbations[pct], randomlyPerturbedGraphWalkBased, floydRandomlyPerturtbedGraph, fileNamesOutsRandomPerturbations[pct], attackerCount, victimCount, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
 				}
 				
 				// Original (>1,>1)-anonymity method
@@ -198,7 +198,7 @@ public class ExperimentsRobustSybils {
 				OddCycle.anonymizeGraph(anonDistAnonymizedGraphWalkBased, floydOriginalWalkBasedAttackedGraph, 3);
 				
 				FloydWarshallShortestPaths<String, DefaultEdge> floydDistAnonymizedGraph = new FloydWarshallShortestPaths<>(anonDistAnonymizedGraphWalkBased);			
-				Statistics.printStatisticsRobustSybilsExp(i, outDistAnonymizationWalkBased, anonDistAnonymizedGraphWalkBased, floydDistAnonymizedGraph, fileNameOutDistAnonymizationWalkBased, attackersCount, victimsCountWalkBased, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
+				Statistics.printStatisticsRobustSybilsExp(i, outDistAnonymizationWalkBased, anonDistAnonymizedGraphWalkBased, floydDistAnonymizedGraph, fileNameOutDistAnonymizationWalkBased, attackerCount, victimCount, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
 				
 				// (>1,\Gamma_1)-anonymity
 				
@@ -206,16 +206,16 @@ public class ExperimentsRobustSybils {
 				OddCycle.anonymousTransformation(anonDistTransformedGraphWalkBased, floydOriginalWalkBasedAttackedGraph);
 				
 				FloydWarshallShortestPaths<String, DefaultEdge> floydDistTransformedGraph = new FloydWarshallShortestPaths<>(anonDistTransformedGraphWalkBased);			
-				Statistics.printStatisticsRobustSybilsExp(i, outDistTransformationWalkBased, anonDistTransformedGraphWalkBased, floydDistTransformedGraph, fileNameOutDistTransformationWalkBased, attackersCount, victimsCountWalkBased, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
+				Statistics.printStatisticsRobustSybilsExp(i, outDistTransformationWalkBased, anonDistTransformedGraphWalkBased, floydDistTransformedGraph, fileNameOutDistTransformationWalkBased, attackerCount, victimCount, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
 				
 				// (attackersCount,\Gamma_1)-adjacency anonymity
 				
 				SimpleGraph<String, DefaultEdge> anonAdjTransformedGraphWalkBased = GraphUtil.cloneGraph(walkBasedAttackedGraph); 
 				//AdjacencyAnonymizer.k1AdjAnonymousTransformation(anonAdjTransformedGraphWalkBased, 2);
-				AdjacencyAnonymizer.k1AdjAnonymousTransformation(anonAdjTransformedGraphWalkBased, attackersCount);
+				AdjacencyAnonymizer.k1AdjAnonymousTransformation(anonAdjTransformedGraphWalkBased, attackerCount);
 				
 				FloydWarshallShortestPaths<String, DefaultEdge> floydAdjTransformedGraph = new FloydWarshallShortestPaths<>(anonAdjTransformedGraphWalkBased);			
-				Statistics.printStatisticsRobustSybilsExp(i, outAdjTransformationWalkBased, anonAdjTransformedGraphWalkBased, floydAdjTransformedGraph, fileNameOutAdjTransformationWalkBased, attackersCount, victimsCountWalkBased, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
+				Statistics.printStatisticsRobustSybilsExp(i, outAdjTransformationWalkBased, anonAdjTransformedGraphWalkBased, floydAdjTransformedGraph, fileNameOutAdjTransformationWalkBased, attackerCount, victimCount, attackSimulator, walkBasedAttackedGraph, floydOriginalWalkBasedAttackedGraph);
 			}
 			
 			outOriginalWalkBased.close();

@@ -35,11 +35,27 @@ public class KMatchAnonymizerUsingGraMi {
 	protected static Map<String, List<String>> globalVAT;
 	
 	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k) {
-		globalVAT = new TreeMap<>();
-		partitionAlignAndAnonymize(graph, k);
+		if (k < graph.vertexSet().size()) {
+			globalVAT = new TreeMap<>();
+			performAnonymization(graph, k);
+		}
+		else {
+			// Convert graph into a K_k
+			int origVertCount = graph.vertexSet().size();
+			int dummyIndex = GraphUtil.maxVertexId(graph) + 1;
+			for (int i = 0; i < k - origVertCount; i++) {
+				graph.addVertex("" + dummyIndex);
+				dummyIndex++;
+			}
+			List<String> vertList = new ArrayList<>(graph.vertexSet());
+			for (int i = 0; i < vertList.size() - 1; i++)
+				for (int j = i + 1; j < vertList.size(); j++)
+					if (!graph.containsEdge(vertList.get(i), vertList.get(j)))
+						graph.addEdge(vertList.get(i), vertList.get(j));
+		}
 	}
 
-	protected static void partitionAlignAndAnonymize(UndirectedGraph<String, DefaultEdge> graph, int k) {
+	protected static void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k) {
 		
 		UndirectedGraph<String, DefaultEdge> workingGraph = GraphUtil.cloneGraph(graph); 
 		

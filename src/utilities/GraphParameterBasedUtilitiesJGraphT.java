@@ -21,7 +21,7 @@ public class GraphParameterBasedUtilitiesJGraphT {
 		List<String> vertListPert = new ArrayList<>(perturbedGraph.vertexSet());	
 		for (int i = 0; i < vertListPert.size() - 1; i++)
 			for (int j = i + 1; j < vertListPert.size(); j++)
-				if (perturbedGraph.containsEdge(vertListPert.get(i), vertListPert.get(j)) && !originalGraph.containsEdge(vertListPert.get(j), vertListPert.get(j)))
+				if (perturbedGraph.containsEdge(vertListPert.get(i), vertListPert.get(j)) && !originalGraph.containsEdge(vertListPert.get(i), vertListPert.get(j)))
 					addedEdges++;
 		return addedEdges;
 	}
@@ -31,7 +31,7 @@ public class GraphParameterBasedUtilitiesJGraphT {
 		List<String> vertListOrig = new ArrayList<>(originalGraph.vertexSet());
 		for (int i = 0; i < vertListOrig.size() - 1; i++)
 			for (int j = i + 1; j < vertListOrig.size(); j++)
-				if (originalGraph.containsEdge(vertListOrig.get(i), vertListOrig.get(j)) && !perturbedGraph.containsEdge(vertListOrig.get(j), vertListOrig.get(j)))
+				if (originalGraph.containsEdge(vertListOrig.get(i), vertListOrig.get(j)) && !perturbedGraph.containsEdge(vertListOrig.get(i), vertListOrig.get(j)))
 					removedEdges++;
 		return removedEdges;
 	}
@@ -57,11 +57,10 @@ public class GraphParameterBasedUtilitiesJGraphT {
 	}
 	
 	public static int deltaEffectiveDiameter(UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydOriginal, UndirectedGraph<String, DefaultEdge> perturbedGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydPerturbed) {
-		return computeEffectiveDiameter(perturbedGraph, floydPerturbed) - computeEffectiveDiameter(originalGraph, floydOriginal);
+		return effectiveDiameter(perturbedGraph, floydPerturbed) - effectiveDiameter(originalGraph, floydOriginal);
 	}
 	
-	public static int computeEffectiveDiameter(UndirectedGraph<String, DefaultEdge> graph,
-			FloydWarshallShortestPaths<String, DefaultEdge> floyd) {
+	public static int effectiveDiameter(UndirectedGraph<String, DefaultEdge> graph, FloydWarshallShortestPaths<String, DefaultEdge> floyd) {
 		ArrayList<Integer> valueList = new ArrayList<>();
 		for (String v1 : graph.vertexSet()) {
 			for (String v2 : graph.vertexSet())
@@ -85,7 +84,7 @@ public class GraphParameterBasedUtilitiesJGraphT {
 	}
 	
 	public static double deltaGlobalClusteringCoefficient(UndirectedGraph<String, DefaultEdge> originalGraph, UndirectedGraph<String, DefaultEdge> perturbedGraph) {
-		return globalClusteringCoefficient(perturbedGraph) - globalClusteringCoefficient(perturbedGraph);
+		return globalClusteringCoefficient(perturbedGraph) - globalClusteringCoefficient(originalGraph);
 	}
 	
 	public static double globalClusteringCoefficient(UndirectedGraph<String, DefaultEdge> graph) {
@@ -111,7 +110,7 @@ public class GraphParameterBasedUtilitiesJGraphT {
 	}
 	
 	public static double deltaAvgLocalClusteringCoefficient(UndirectedGraph<String, DefaultEdge> originalGraph, UndirectedGraph<String, DefaultEdge> perturbedGraph) {
-		return avgLocalClusteringCoefficient(perturbedGraph) - avgLocalClusteringCoefficient(perturbedGraph);
+		return avgLocalClusteringCoefficient(perturbedGraph) - avgLocalClusteringCoefficient(originalGraph);
 	}
 	
 	public static double avgLocalClusteringCoefficient(UndirectedGraph<String, DefaultEdge> graph) {
@@ -157,22 +156,22 @@ public class GraphParameterBasedUtilitiesJGraphT {
 			degreesOrig.add(originalGraph.degreeOf(v));
 		Collections.sort(degreesOrig, Collections.reverseOrder());
 		
-		ArrayList<Integer> degreesModif = new ArrayList<>();
+		ArrayList<Integer> degreesPert = new ArrayList<>();
 		for (String v : perturbedGraph.vertexSet())
-			degreesModif.add(perturbedGraph.degreeOf(v));
-		Collections.sort(degreesModif, Collections.reverseOrder());
+			degreesPert.add(perturbedGraph.degreeOf(v));
+		Collections.sort(degreesPert, Collections.reverseOrder());
 		
-		if (degreesOrig.size() < degreesModif.size())
-			for (int i = degreesOrig.size(); i < degreesModif.size(); i++)
+		if (degreesOrig.size() < degreesPert.size())
+			for (int i = degreesOrig.size(); i < degreesPert.size(); i++)
 				degreesOrig.add(0);
-		else if (degreesOrig.size() > degreesModif.size())
-			for (int i = degreesModif.size(); i < degreesOrig.size(); i++)
-				degreesModif.add(0);
+		else if (degreesOrig.size() > degreesPert.size())
+			for (int i = degreesPert.size(); i < degreesOrig.size(); i++)
+				degreesPert.add(0);
 		
 		for (int i = 0; i < degreesOrig.size(); i++) {
 			int deg1 = degreesOrig.get(i);
 			norm1Sum += deg1 * deg1;	
-			int deg2 = degreesModif.get(i);
+			int deg2 = degreesPert.get(i);
 			norm2Sum += deg2 * deg2;
 			cosSum += deg1 * deg2;
 			
@@ -186,17 +185,17 @@ public class GraphParameterBasedUtilitiesJGraphT {
 		DistributionComputer distComp = new DegreeDistributionComputer();
 		
 		Map<Integer, Double> distOrig = distComp.computeDistributionAsProbabilities(originalGraph);
-		Map<Integer, Double> distModif = distComp.computeDistributionAsProbabilities(perturbedGraph);
+		Map<Integer, Double> distPert = distComp.computeDistributionAsProbabilities(perturbedGraph);
 		
 		double klDiv = 0d;
 		double entropyOrig = 0d;
 		
 		for (int vo : distOrig.keySet()) {
 			entropyOrig += -(distOrig.get(vo) * (Math.log(distOrig.get(vo)) / Math.log(2d)));
-			if (distModif.containsKey(vo)) 
-				klDiv += distOrig.get(vo) * (Math.log(distOrig.get(vo) / distModif.get(vo)) / Math.log(2d));
+			if (distPert.containsKey(vo)) 
+				klDiv += distOrig.get(vo) * (Math.log(distOrig.get(vo) / distPert.get(vo)) / Math.log(2d));
 			else
-				klDiv += distOrig.get(vo) * (Math.log(distOrig.get(vo) / distModif.get(-1)) / Math.log(2d));
+				klDiv += distOrig.get(vo) * (Math.log(distOrig.get(vo) / distPert.get(-1)) / Math.log(2d));
 		}
 		
 		return (entropyOrig + klDiv) / entropyOrig;

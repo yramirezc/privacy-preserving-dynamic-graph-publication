@@ -2,8 +2,11 @@ package anonymization;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,53 +37,57 @@ import util.GraphUtil;
 
 public class KMatchAnonymizerUsingMETIS {
 	
-protected static Map<String, List<String>> globalVAT;
+	protected static Map<String, List<String>> globalVAT;
 	
-	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k) {
-		globalVAT = new TreeMap<>();
-		partitionAlignAndAnonymize(graph, k);
+	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName) {
+		if (k < graph.vertexSet().size()) {
+			globalVAT = new TreeMap<>();
+			performAnonymization(graph, k, uniqueIdFileName);
+		}
+		else {
+			// Convert graph into a K_k
+			int origVertCount = graph.vertexSet().size();
+			int dummyIndex = GraphUtil.maxVertexId(graph) + 1;
+			for (int i = 0; i < k - origVertCount; i++) {
+				graph.addVertex("" + dummyIndex);
+				dummyIndex++;
+			}
+			List<String> vertList = new ArrayList<>(graph.vertexSet());
+			for (int i = 0; i < vertList.size() - 1; i++)
+				for (int j = i + 1; j < vertList.size(); j++)
+					if (!graph.containsEdge(vertList.get(i), vertList.get(j)))
+						graph.addEdge(vertList.get(i), vertList.get(j));
+		}
 	}
 
-	protected static void partitionAlignAndAnonymize(UndirectedGraph<String, DefaultEdge> graph, int k) {
+	protected static void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName) {
 		
 		try {
 			
 			// Generate METIS input
-			if (graph.containsVertex(0+""))
-				GraphUtil.shiftVertexIds(graph, 1, graph.vertexSet());   // Guarantee that vertex ids start at 1
+			int startingVertId = GraphUtil.minVertexId(graph);
+			int vertIdOffset = 1 - startingVertId;   // To make sure that vertex ids start at 1 as required by METIS
 			if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
-				GraphUtil.generateMetisInput(graph, "C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph.txt", false);
+				generateMetisInput(graph, "C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt", false, vertIdOffset);
 			else
-				GraphUtil.generateMetisInput(graph, "/home/yunior.ramirez/metis-5.1.0/graphs/workingGraph.txt", false);
+				generateMetisInput(graph, "/home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt", false, vertIdOffset);
 			
 			// Run METIS
 			Runtime rt = Runtime.getRuntime();
 			String command = null;
 			if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
-				command = "C:\\cygwin64\\usr\\local\\bin\\gpmetis.exe C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph.txt " + k;
+				command = "C:\\cygwin64\\usr\\local\\bin\\gpmetis.exe C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt " + k;
 			else
-				command = "/usr/local/bin/gpmetis /home/yunior.ramirez/metis-5.1.0/graphs/workingGraph.txt " + k;
+				command = "/home/users/yramirezcruz/bin/gpmetis /home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt " + k;
 			Process proc = rt.exec(command);
 			proc.waitFor();
 			
 			// Load METIS output
-			BufferedReader metisOuputReader = new BufferedReader(new FileReader(new File("C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph.txt.part." + k)));
-			Map<String, Set<String>> vertsXPart = new TreeMap<>();
-			int vertId = 1;   // generateMetisInput forced the ids to start at 1, because this is what is expected by METIS
-			for (String line = metisOuputReader.readLine(); line != null; line = metisOuputReader.readLine()) {
-				if (!line.trim().equals("")) {
-					if (vertsXPart.containsKey(line.trim()))
-						vertsXPart.get(line.trim()).add(vertId+"");
-					else {
-						Set<String> newPart = new TreeSet<>();
-						newPart.add(vertId+"");
-						vertsXPart.put(line.trim(), newPart);
-					}
-					vertId++;
-				}
-			}
-			metisOuputReader.close();
-			
+			Map<String, Set<String>> vertsXPart = null;
+			if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
+				vertsXPart = loadMetisOutput("C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+			else
+				vertsXPart = loadMetisOutput("/home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
 			List<UndirectedGraph<String, DefaultEdge>> partitions = new ArrayList<>();
 			for (String pid : vertsXPart.keySet())
 				partitions.add(GraphUtil.inducedSubgraph(graph, vertsXPart.get(pid)));
@@ -95,6 +102,51 @@ protected static Map<String, List<String>> globalVAT;
 		} catch (InterruptedException e) {
 			// Do nothing, i.e. make no modifications to the graph
 		}
+	}
+	
+	protected static void generateMetisInput(UndirectedGraph<String, DefaultEdge> graph, String fileName, boolean weightedVertices, int vertIdOffset) throws IOException {
+		final String NEW_LINE = System.getProperty("line.separator");
+		int maxDeg = -1;
+		if (weightedVertices) {
+			for (String v : graph.vertexSet())
+				if (graph.degreeOf(v) > maxDeg)
+					maxDeg = graph.degreeOf(v);
+			maxDeg++;   // So we get weight 1 for vertices of degree maxDeg, instead of 0
+		}
+		Writer metisInputWriter = new FileWriter(fileName, false);
+		if (weightedVertices)
+			metisInputWriter.append("" + graph.vertexSet().size() + " " + graph.edgeSet().size() + " 010 1" + NEW_LINE);
+		else
+			metisInputWriter.append("" + graph.vertexSet().size() + " " + graph.edgeSet().size() + NEW_LINE);
+		for (String v : graph.vertexSet()) {
+			String line = ""; 
+			if (weightedVertices)
+				line += (maxDeg - graph.degreeOf(v)) + " ";
+			for (String w : Graphs.neighborListOf(graph, v))
+				line += (Integer.parseInt(w) + vertIdOffset) + " ";
+			metisInputWriter.append(line.trim() + NEW_LINE);
+		}
+		metisInputWriter.close();
+	}
+	
+	protected static Map<String, Set<String>> loadMetisOutput(String fileName, int startingVertId) throws IOException {
+		Map<String, Set<String>> vertsXPart = new TreeMap<>();
+		int vertId = startingVertId;
+		BufferedReader metisOuputReader = new BufferedReader(new FileReader(new File(fileName)));
+		for (String line = metisOuputReader.readLine(); line != null; line = metisOuputReader.readLine()) {
+			if (!line.trim().equals("")) {
+				if (vertsXPart.containsKey(line.trim()))
+					vertsXPart.get(line.trim()).add(vertId+"");
+				else {
+					Set<String> newPart = new TreeSet<>();
+					newPart.add(vertId+"");
+					vertsXPart.put(line.trim(), newPart);
+				}
+				vertId++;
+			}
+		}
+		metisOuputReader.close();
+		return vertsXPart;
 	}
 	
 	protected static Map<String, List<String>> getVAT(UndirectedGraph<String, DefaultEdge> workingGraph, List<UndirectedGraph<String, DefaultEdge>> group) {
@@ -117,11 +169,7 @@ protected static Map<String, List<String>> globalVAT;
 		
 		if (dummiesNeeded) {
 			
-			int dummyIndex = -1;
-			for (String v : workingGraph.vertexSet()) 
-				if (Integer.parseInt(v) > dummyIndex)
-					dummyIndex = Integer.parseInt(v); 
-			dummyIndex++;
+			int dummyIndex = GraphUtil.maxVertexId(workingGraph) + 1; 
 			
 			for (int i = 0; i < group.size(); i++) {
 				if (group.get(i).vertexSet().size() < maxBlockSize) {
@@ -431,7 +479,7 @@ protected static Map<String, List<String>> globalVAT;
 			for (int k = 2; k <= 10; k++) {
 				
 				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
-				anonymizeGraph(clone, k);
+				anonymizeGraph(clone, k, "Tester");
 				
 				// Report effect of anonymization on the graph
 				System.out.println("k = " + k);

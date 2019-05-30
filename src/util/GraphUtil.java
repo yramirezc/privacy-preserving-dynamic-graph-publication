@@ -369,72 +369,96 @@ public class GraphUtil {
 		return result;
 	}
 
-	public static void addRandomEdges(int toAdd, SimpleGraph<String, DefaultEdge> graph) {
+	public static void addRandomEdges(int additionCount, SimpleGraph<String, DefaultEdge> graph) {
+		
 		SecureRandom random = new SecureRandom();
-		int numberOfEdges = graph.edgeSet().size();
-		int vexNum = graph.vertexSet().size();
-		if (numberOfEdges+toAdd > vexNum*(vexNum-1)/2){
-			throw new RuntimeException("No sufficient missing edges");
+		
+		int currentEdgeCount = graph.edgeSet().size();
+		int vertCount = graph.vertexSet().size();
+		
+		if (currentEdgeCount + additionCount >= vertCount * (vertCount - 1) / 2) {   // Number of edges to add larger than number of missing edges
+			// Convert into a complete graph
+			List<String> vertList = new ArrayList<>(graph.vertexSet());			
+			for (int i = 0; i < vertList.size() - 1; i++)
+				for (int j = i + 1; j < vertList.size(); j++)
+					if (!graph.containsEdge(vertList.get(i), vertList.get(j)))
+						graph.addEdge(vertList.get(i), vertList.get(j));
 		}
-		Hashtable<String, ArrayList<String>> availableEdges = new Hashtable<>();
-		String[] vertices = new String[graph.vertexSet().size()];
-		int index =  0;
-		for (String v : graph.vertexSet()){
-			vertices[index++] = v;
-		}
-		for (int i = 0; i < vertices.length-1; i++){
-			String v1 = vertices[i];
-			for (int j = i+1; j < vertices.length; j++){
-				String v2 = vertices[j];
-				if (graph.containsEdge(v1, v2)) continue;
-				if (availableEdges.containsKey(v1)){
-					availableEdges.get(v1).add(v2);
+		else {
+			Hashtable<String, ArrayList<String>> availableEdges = new Hashtable<>();
+			String[] vertices = new String[graph.vertexSet().size()];
+			int index =  0;
+			for (String v : graph.vertexSet()){
+				vertices[index++] = v;
+			}
+			for (int i = 0; i < vertices.length-1; i++){
+				String v1 = vertices[i];
+				for (int j = i+1; j < vertices.length; j++){
+					String v2 = vertices[j];
+					if (graph.containsEdge(v1, v2)) continue;
+					if (availableEdges.containsKey(v1)){
+						availableEdges.get(v1).add(v2);
+					}
+					else{
+						ArrayList<String> tmp = new ArrayList<>();
+						tmp.add(v2);
+						availableEdges.put(v1, tmp);
+					}
 				}
-				else{
-					ArrayList<String> tmp = new ArrayList<>();
-					tmp.add(v2);
-					availableEdges.put(v1, tmp);
+			}
+			String[] keys = new String[availableEdges.size()];
+			index =  0;
+			for (String key : availableEdges.keySet())
+				keys[index++] = key;
+			for (int i = 0; i < additionCount; i++){
+				int v1 = random.nextInt(keys.length);
+				ArrayList<String> candidates = availableEdges.get(keys[v1]);
+				int v2 = random.nextInt(candidates.size());
+				graph.addEdge(keys[v1], candidates.get(v2));
+				//next we remove this edge
+				candidates.remove(v2);
+				if (candidates.isEmpty()){
+					availableEdges.remove(keys[v1]);
+					//because we remove a pair we will need to recompute
+					keys = new String[availableEdges.size()];
+					index =  0;
+					for (String key : availableEdges.keySet())
+						keys[index++] = key;
 				}
 			}
 		}
-		String[] keys = new String[availableEdges.size()];
-		index =  0;
-		for (String key : availableEdges.keySet())
-			keys[index++] = key;
-		for (int i = 0; i < toAdd; i++){
-			int v1 = random.nextInt(keys.length);
-			ArrayList<String> candidates = availableEdges.get(keys[v1]);
-			int v2 = random.nextInt(candidates.size());
-			graph.addEdge(keys[v1], candidates.get(v2));
-			//next we remove this edge
-			candidates.remove(v2);
-			if (candidates.isEmpty()){
-				availableEdges.remove(keys[v1]);
-				//because we remove a pair we will need to recompute
-				keys = new String[availableEdges.size()];
-				index =  0;
-				for (String key : availableEdges.keySet())
-					keys[index++] = key;
-			}
-		}
-		/*while (counter < toAdd){
-			int v1 = random.nextInt(vexNum);
-			int v2 = random.nextInt(vexNum);
-			if (v1== v2 || graph.containsEdge(v1+"", v2+"")) continue;
-			graph.addEdge(v1+"", v2+"");
-			counter++;
-		}*/
 	}
 	
-	public static void removeRandomEdges(int toRemove, SimpleGraph<String, DefaultEdge> graph) {
-		if (toRemove > graph.edgeSet().size())
-			throw new RuntimeException("No sufficient removable edges");
+	public static void addVertsAndRandomEdges(Set<String> vertsToAdd, int additionCount, SimpleGraph<String, DefaultEdge> graph) {
 		SecureRandom random = new SecureRandom();
-		ArrayList<DefaultEdge> edgeList = new ArrayList<>(graph.edgeSet());
-		for (int i = 0; i < toRemove; i++) {
-			int orderEdgeToDelete = random.nextInt(edgeList.size());
-			graph.removeEdge(edgeList.get(orderEdgeToDelete));
-			edgeList.remove(orderEdgeToDelete);
+		List<String> graphVertList = new ArrayList<>(graph.vertexSet());
+		for (String v : vertsToAdd) {
+			graph.addVertex(v);
+			graph.addEdge(v, graphVertList.get(random.nextInt(graphVertList.size())));
+			additionCount--;
+			graphVertList.add(v);
+		}
+		if (additionCount > 0)
+			addRandomEdges(additionCount, graph);
+	}
+	
+	public static void removeRandomEdges(int removalCount, SimpleGraph<String, DefaultEdge> graph) {
+		if (removalCount >= graph.edgeSet().size()) {
+			// Convert into an empty graph
+			List<String> vertList = new ArrayList<>(graph.vertexSet());			
+			for (int i = 0; i < vertList.size() - 1; i++)
+				for (int j = i + 1; j < vertList.size(); j++)
+					if (graph.containsEdge(vertList.get(i), vertList.get(j)))
+						graph.removeEdge(vertList.get(i), vertList.get(j));
+		}
+		else {
+			SecureRandom random = new SecureRandom();
+			ArrayList<DefaultEdge> edgeList = new ArrayList<>(graph.edgeSet());
+			for (int i = 0; i < removalCount; i++) {
+				int orderEdgeToDelete = random.nextInt(edgeList.size());
+				graph.removeEdge(edgeList.get(orderEdgeToDelete));
+				edgeList.remove(orderEdgeToDelete);
+			}
 		}
 	}
 	
@@ -456,50 +480,6 @@ public class GraphUtil {
 			else
 				graph.addEdge(v1, v2);
 		}
-	}
-	
-	public static UndirectedGraph<String, DefaultEdge> cloneWithShiftedVertexIds(UndirectedGraph<String, DefaultEdge> originalGraph, int offset, Set<String> verticesToKeep) {
-		
-		UndirectedGraph<String, DefaultEdge> newGraph = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
-		
-		int[] index = new int[verticesToKeep.size()];
-		for (int i = 0; i < index.length; i++) {
-			index[i] = i + offset;
-		}
-		
-		HashMap<String, String> mapping = new HashMap<>();
-		int ind = 0;
-		for (String v : verticesToKeep) {
-			mapping.put(v, index[ind]+"");
-			newGraph.addVertex(index[ind]+"");
-			ind++;
-		}
-		
-		for (String v1 : verticesToKeep) {
-			for (String v2 : verticesToKeep) {
-				if (originalGraph.containsEdge(v1,  v2))
-					newGraph.addEdge(mapping.get(v1), mapping.get(v2));
-			}
-		}
-		return newGraph;
-	}
-	
-	public static void shiftVertexIds(UndirectedGraph<String, DefaultEdge> originalGraph, int offset, Set<String> verticesToKeep) {
-		
-		UndirectedGraph<String, DefaultEdge> newGraph = cloneWithShiftedVertexIds(originalGraph, offset, verticesToKeep);
-		
-		Set<String> copyOrigVerts = new TreeSet<>(originalGraph.vertexSet());
-		originalGraph.removeAllVertices(copyOrigVerts);
-		
-		for (String v : newGraph.vertexSet())
-			originalGraph.addVertex(v);
-		
-		List<String> newVertexSet = new ArrayList<>(newGraph.vertexSet());
-		for (int i = 0; i < newVertexSet.size() - 1; i++)
-			for (int j = i + 1; j < newVertexSet.size(); j++)
-				if (newGraph.containsEdge(newVertexSet.get(i), newVertexSet.get(j)))
-					originalGraph.addEdge(newVertexSet.get(i), newVertexSet.get(j));
-		
 	}
 
 	/* YR (12/03/2019) Originally, this method was called transformRealSocNetIntoOurFormat.
@@ -658,6 +638,28 @@ public class GraphUtil {
 		return edgeCount;
 	}
 	
+	public static Set<String> addedVertices(UndirectedGraph<String, DefaultEdge> originalGraph, UndirectedGraph<String, DefaultEdge> perturbedGraph) {
+		Set<String> addedVerts = new TreeSet<>(perturbedGraph.vertexSet());
+		addedVerts.removeAll(originalGraph.vertexSet());
+		return addedVerts;
+	}
+	
+	public static int minVertexId(UndirectedGraph<String, DefaultEdge> graph) {
+		int minVertId = Integer.MAX_VALUE;
+		for (String v : graph.vertexSet())
+			if (Integer.parseInt(v) < minVertId) 
+				minVertId = Integer.parseInt(v); 
+		return minVertId;
+	}
+	
+	public static int maxVertexId(UndirectedGraph<String, DefaultEdge> graph) {
+		int maxVertId = -1;
+		for (String v : graph.vertexSet())
+			if (Integer.parseInt(v) > maxVertId) 
+				maxVertId = Integer.parseInt(v); 
+		return maxVertId;
+	}
+	
 	public static int minDegree(UndirectedGraph<String, DefaultEdge> graph) {
 		int minDegree = graph.vertexSet().size();
 		for (String v : graph.vertexSet())
@@ -692,7 +694,7 @@ public class GraphUtil {
 		return fingerprint;
 	}
 	
-	// This is a replica of methods that were oiriginally in Statistics.java
+	// This is a replica of methods that were originally in Statistics.java
 	
 	public static List<String[]> getPotentialAttackerCandidates(int[] fingerprintDegrees, 
 			boolean[][] fingerprintLinks, UndirectedGraph<String, DefaultEdge> graph) {
@@ -847,31 +849,6 @@ public class GraphUtil {
 		} while (foundNonIsolated);
 		
 		return graph.vertexSet();
-	}
-	
-	public static void generateMetisInput(UndirectedGraph<String, DefaultEdge> graph, String fileName, boolean weightedVertices) throws IOException {
-		
-		int maxDeg = -1;
-		if (weightedVertices) {
-			for (String v : graph.vertexSet())
-				if (graph.degreeOf(v) > maxDeg)
-					maxDeg = graph.degreeOf(v);
-			maxDeg++;   // So we get weight 1 for vertices of degree maxDeg, instead of 0
-		}
-		Writer out = new FileWriter(fileName, false);
-		if (weightedVertices)
-			out.append("" + graph.vertexSet().size() + " " + graph.edgeSet().size() + " 010 1" + NEW_LINE);
-		else
-			out.append("" + graph.vertexSet().size() + " " + graph.edgeSet().size() + NEW_LINE);
-		for (String v : graph.vertexSet()) {
-			String line = ""; 
-			if (weightedVertices)
-				line += (maxDeg - graph.degreeOf(v)) + " ";
-			for (String w : Graphs.neighborListOf(graph, v))
-				line += w + " ";
-			out.append(line.trim() + NEW_LINE);
-		}
-		out.close();
 	}
 	
 	public static void generateGraMiInput(UndirectedGraph<String, DefaultEdge> graph, String fileName) throws IOException {
