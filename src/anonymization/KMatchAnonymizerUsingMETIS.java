@@ -39,10 +39,10 @@ public class KMatchAnonymizerUsingMETIS {
 	
 	protected static Map<String, List<String>> globalVAT;
 	
-	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName) {
+	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomized, String uniqueIdFileName) {
 		if (k < graph.vertexSet().size()) {
 			globalVAT = new TreeMap<>();
-			performAnonymization(graph, k, uniqueIdFileName);
+			performAnonymization(graph, k, randomized, uniqueIdFileName);
 		}
 		else {
 			// Convert graph into a K_k
@@ -60,7 +60,7 @@ public class KMatchAnonymizerUsingMETIS {
 		}
 	}
 
-	protected static void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName) {
+	protected static void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomized, String uniqueIdFileName) {
 		
 		try {
 			
@@ -95,7 +95,10 @@ public class KMatchAnonymizerUsingMETIS {
 			// Perform the anonymization
 			globalVAT = getVAT(graph, partitions);
 			alignBlocks(graph, globalVAT);
-			copyCrossingEdges(graph);
+			if (randomized)
+				randomlyUniformizeCrossingEdges(graph);
+			else
+				copyCrossingEdges(graph);   // Original approach by Zou et al.
 			
 		} catch (IOException e) {
 			// Do nothing, i.e. make no modifications to the graph
@@ -381,7 +384,32 @@ public class KMatchAnonymizerUsingMETIS {
 						if (graph.containsEdge(globalVAT.get(vatKeys.get(i)).get(j), globalVAT.get(vatKeys.get(p)).get(q))) {
 							int len = globalVAT.get(vatKeys.get(i)).size();
 							for (int offset = 1; offset < len; offset++) 
+								graph.addEdge(globalVAT.get(vatKeys.get(i)).get((j + offset) % len), globalVAT.get(vatKeys.get(p)).get((q + offset) % len));
+						}
+	}
+	
+	protected static void randomlyUniformizeCrossingEdges(UndirectedGraph<String, DefaultEdge> graph) {
+		// When this method is called, all dummy vertices have already been added by one or several calls of alignBlocks
+		SecureRandom random = new SecureRandom();
+		List<String> vatKeys = new ArrayList<>(globalVAT.keySet());
+		for (int i = 0; i < vatKeys.size(); i++)
+			for (int j = 0; j < globalVAT.get(vatKeys.get(i)).size() - 1; j++)
+				for (int p = i; p < vatKeys.size(); p++)
+					for (int q = j + 1; q < globalVAT.get(vatKeys.get(p)).size(); q++) 
+						if (graph.containsEdge(globalVAT.get(vatKeys.get(i)).get(j), globalVAT.get(vatKeys.get(p)).get(q))) {
+							int len = globalVAT.get(vatKeys.get(i)).size();
+							int countExistingCopies = 1;   // Counting current occurrence as a copy 
+							for (int offset = 1; offset < len; offset++) 
+								if (graph.containsEdge(globalVAT.get(vatKeys.get(i)).get((j + offset) % len), globalVAT.get(vatKeys.get(p)).get((q + offset) % len)))
+									countExistingCopies++;
+							// Decide whether to perform an edge copy, with probability countExistingCopies/len, or a removal, with probability (len-countExistingCopies)/len
+							boolean performCopy = (random.nextInt(len) < countExistingCopies);
+							if (performCopy)   // Uniformize by copying
+								for (int offset = 1; offset < len; offset++)
 									graph.addEdge(globalVAT.get(vatKeys.get(i)).get((j + offset) % len), globalVAT.get(vatKeys.get(p)).get((q + offset) % len));
+							else   // Uniformize by removing
+								for (int offset = 0; offset < len; offset++)   // Starts at offset 0 to first remove the current edge
+									graph.removeEdge(globalVAT.get(vatKeys.get(i)).get((j + offset) % len), globalVAT.get(vatKeys.get(p)).get((q + offset) % len));
 						}
 	}
 	
@@ -479,7 +507,7 @@ public class KMatchAnonymizerUsingMETIS {
 			for (int k = 2; k <= 10; k++) {
 				
 				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
-				anonymizeGraph(clone, k, "Tester");
+				anonymizeGraph(clone, k, false, "Tester");
 				
 				// Report effect of anonymization on the graph
 				System.out.println("k = " + k);

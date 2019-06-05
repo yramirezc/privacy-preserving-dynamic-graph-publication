@@ -46,9 +46,11 @@ public class ExperimentsSybilHiding {
 		
 		int kValues[] = new int[]{2,3,4,5,6,7,8,9,10};
 		
-		boolean useMETIS = true;      
+		boolean useMETIS = true;
 		
-		if (args.length == 7) {
+		boolean randomize = false;
+		
+		if (args.length == 8) {
 			vernum = Integer.parseInt(args[0]);
 			densities = new double[1];
 			densities[0] = Double.parseDouble(args[1]);
@@ -63,10 +65,15 @@ public class ExperimentsSybilHiding {
 				useMETIS = true;
 			else if (args[6].toLowerCase().equals("-grami"))
 				useMETIS = false;
+			if (args[7].toLowerCase().equals("-random"))
+				randomize = true;
+			else if (args[7].toLowerCase().equals("-orig"))
+				randomize = false;
 		}   // else the defaults defined above are taken
 		
 		String expNamePrefix = "Exp1";
 		String expNameSuffix = (useMETIS)? "-METIS" : "-GraMi";
+		expNameSuffix += (randomize)? "-random" : "-orig";
 		
 		for (double density : densities) {
 			for (int attackerCount : attackerCounts) {
@@ -84,7 +91,7 @@ public class ExperimentsSybilHiding {
 						String fileNameOutRandEquivWeakKEllSubgraphIsomorphism = expNamePrefix + "-Syb-Hiding-RandEquiv-Weak-" + k + "-ell-Subgraph-Iso-V-" + vernum + "-D-" + density + "-A-" + attackerCount + "-AttType-" + attackType + "-ED-" + editDist + expNameSuffix;
 						String fileNameOutRandEquivStrongKEllSubgraphIsomorphism = expNamePrefix + "-Syb-Hiding-RandEquiv-Strong-" + k + "-ell-Subgraph-Iso-V-" + vernum + "-D-" + density + "-A-" + attackerCount + "-AttType-" + attackType + "-ED-" + editDist + expNameSuffix;
 											
-						oneRunExperimentSybilHidingErdosRenyiRandomGraphs(vernum, edgenum, attackType, attackerCount, k, editDist, useMETIS, fileNameOutOriginal, fileNameOutKGamma1AdjAnonymity, fileNameOutRandEquivKGamma1AdjAnonymity, fileNameOutKAutomorphism, fileNameOutRandEquivKAutomorphism, fileNameOutWeakKEllSubgraphIsomorphism, fileNameOutRandEquivWeakKEllSubgraphIsomorphism, fileNameOutStrongKEllSubgraphIsomorphism, fileNameOutRandEquivStrongKEllSubgraphIsomorphism);
+						oneRunExperimentSybilHidingErdosRenyiRandomGraphs(vernum, edgenum, attackType, attackerCount, k, editDist, useMETIS, randomize, fileNameOutOriginal, fileNameOutKGamma1AdjAnonymity, fileNameOutRandEquivKGamma1AdjAnonymity, fileNameOutKAutomorphism, fileNameOutRandEquivKAutomorphism, fileNameOutWeakKEllSubgraphIsomorphism, fileNameOutRandEquivWeakKEllSubgraphIsomorphism, fileNameOutStrongKEllSubgraphIsomorphism, fileNameOutRandEquivStrongKEllSubgraphIsomorphism);
 					}
 				}
 			}
@@ -95,7 +102,7 @@ public class ExperimentsSybilHiding {
 		return (int)(density*vexnum*(vexnum-1)/2);
 	}
 	
-	public static void oneRunExperimentSybilHidingErdosRenyiRandomGraphs(int n, int m, int attackType, int attackerCount, int k, int maxEditDist, boolean useMETIS, String fileNameOutOriginal, 
+	public static void oneRunExperimentSybilHidingErdosRenyiRandomGraphs(int n, int m, int attackType, int attackerCount, int k, int maxEditDist, boolean useMETIS, boolean randomize, String fileNameOutOriginal, 
 			String fileNameOutKGamma1AdjAnonymity, String fileNameOutRandEquivKGamma1AdjAnonymity, String fileNameOutKAutomorphism, String fileNameOutRandEquivKAutomorphism,
 			String fileNameOutWeakKEllSubgraphIsomorphism, String fileNameOutRandEquivWeakKEllSubgraphIsomorphism, String fileNameOutStrongKEllSubgraphIsomorphism, String fileNameOutRandEquivStrongKEllSubgraphIsomorphism) 
 					throws NoSuchAlgorithmException, IOException {
@@ -201,9 +208,9 @@ public class ExperimentsSybilHiding {
 				SimpleGraph<String, DefaultEdge> pertRandEquivKAutomorphicGraph = GraphUtil.cloneGraph(attackedGraph);
 				
 				if (useMETIS)
-					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonKAutomorphicGraph, k, fileNameOutKAutomorphism);
+					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonKAutomorphicGraph, k, randomize, fileNameOutKAutomorphism);
 				else   // use GraMi
-					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonKAutomorphicGraph, k);
+					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonKAutomorphicGraph, k, randomize);
 				FloydWarshallShortestPaths<String, DefaultEdge> floydKAutomorphicGraph = new FloydWarshallShortestPaths<>(anonKAutomorphicGraph);			
 				Statistics.printStatisticsSybilHidingExp(i, outKAutomorphism, anonKAutomorphicGraph, floydKAutomorphicGraph, fileNameOutKAutomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginalAttackedGraph);
 				
@@ -223,9 +230,9 @@ public class ExperimentsSybilHiding {
 				SimpleGraph<String, DefaultEdge> pertRandEquivWeakKEllSubgraphIsomorphicGraph = GraphUtil.cloneGraph(attackedGraph);
 				
 				if (useMETIS)
-					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (k + 1) * attackerCount + 1, fileNameOutWeakKEllSubgraphIsomorphism);
+					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (k + 1) * attackerCount + 1, randomize, fileNameOutWeakKEllSubgraphIsomorphism);
 				else   // use GraMi
-					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (k + 1) * attackerCount + 1);
+					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (k + 1) * attackerCount + 1, randomize);
 				FloydWarshallShortestPaths<String, DefaultEdge> floydWeakKEllSubgraphIsomorphicGraph = new FloydWarshallShortestPaths<>(anonWeakKEllSubgraphIsomorphicGraph);			
 				Statistics.printStatisticsSybilHidingExp(i, outWeakKEllSubgraphIsomorphism, anonWeakKEllSubgraphIsomorphicGraph, floydWeakKEllSubgraphIsomorphicGraph, fileNameOutWeakKEllSubgraphIsomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginalAttackedGraph);
 				
@@ -246,9 +253,9 @@ public class ExperimentsSybilHiding {
 				SimpleGraph<String, DefaultEdge> pertRandEquivStrongKEllSubgraphIsomorphicGraph = GraphUtil.cloneGraph(attackedGraph);
 				
 				if (useMETIS)
-					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, fileNameOutStrongKEllSubgraphIsomorphism);
+					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, randomize, fileNameOutStrongKEllSubgraphIsomorphism);
 				else   // use GraMi
-					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1);
+					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, randomize);
 				FloydWarshallShortestPaths<String, DefaultEdge> floydStrongKEllSubgraphIsomorphicGraph = new FloydWarshallShortestPaths<>(anonStrongKEllSubgraphIsomorphicGraph);			
 				Statistics.printStatisticsSybilHidingExp(i, outStrongKEllSubgraphIsomorphism, anonStrongKEllSubgraphIsomorphicGraph, floydStrongKEllSubgraphIsomorphicGraph, fileNameOutStrongKEllSubgraphIsomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginalAttackedGraph);
 								
@@ -319,7 +326,9 @@ public class ExperimentsSybilHiding {
 		
 		boolean useMETIS = true;
 		
-		if (args.length == 9) {
+		boolean randomize = false;
+		
+		if (args.length == 10) {
 			vernum = Integer.parseInt(args[0]);
 			m0 = Integer.parseInt(args[1]);
 			mValues = new int[1];
@@ -336,10 +345,15 @@ public class ExperimentsSybilHiding {
 				useMETIS = true;
 			else if (args[8].toLowerCase().equals("-grami"))
 				useMETIS = false;
+			if (args[9].toLowerCase().equals("-random"))
+				randomize = true;
+			else if (args[9].toLowerCase().equals("-orig"))
+				randomize = false;
 		}   // else the defaults defined above are taken
 		
 		String expNamePrefix = "Exp1";
 		String expNameSuffix = (useMETIS)? "-METIS" : "-GraMi";
+		expNameSuffix += (randomize)? "-random" : "-orig";
 		
 		for (int m : mValues) {
 			for (int attackerCount : attackerCounts) {
@@ -356,13 +370,13 @@ public class ExperimentsSybilHiding {
 						String fileNameOutRandEquivWeakKEllSubgraphIsomorphism = expNamePrefix + "-Syb-Hiding-RandEquiv-Weak-" + k + "-ell-Subgraph-Iso-V-" + vernum + "-m0-" + m0 + "-m-" + m + "-Seed-"+ seedTypeId + "-A-" + attackerCount + "-AttType-" + attackType + "-ED-" + editDist + expNameSuffix;
 						String fileNameOutRandEquivStrongKEllSubgraphIsomorphism = expNamePrefix + "-Syb-Hiding-RandEquiv-Strong-" + k + "-ell-Subgraph-Iso-V-" + vernum + "-m0-" + m0 + "-m-" + m + "-Seed-"+ seedTypeId + "-A-" + attackerCount + "-AttType-" + attackType + "-ED-" + editDist + expNameSuffix;
 																	
-						oneRunExperimentSybilHidingBarabasiAlbertRandomGraphs(vernum, m0, m, seedTypeId, attackType, attackerCount, k, editDist, useMETIS, fileNameOutOriginal, fileNameOutKGamma1AdjAnonymity, fileNameOutRandEquivKGamma1AdjAnonymity, fileNameOutKAutomorphism, fileNameOutRandEquivKAutomorphism, fileNameOutWeakKEllSubgraphIsomorphism, fileNameOutRandEquivWeakKEllSubgraphIsomorphism, fileNameOutStrongKEllSubgraphIsomorphism, fileNameOutRandEquivStrongKEllSubgraphIsomorphism);
+						oneRunExperimentSybilHidingBarabasiAlbertRandomGraphs(vernum, m0, m, seedTypeId, attackType, attackerCount, k, editDist, useMETIS, randomize, fileNameOutOriginal, fileNameOutKGamma1AdjAnonymity, fileNameOutRandEquivKGamma1AdjAnonymity, fileNameOutKAutomorphism, fileNameOutRandEquivKAutomorphism, fileNameOutWeakKEllSubgraphIsomorphism, fileNameOutRandEquivWeakKEllSubgraphIsomorphism, fileNameOutStrongKEllSubgraphIsomorphism, fileNameOutRandEquivStrongKEllSubgraphIsomorphism);
 					}
 			}
 		}
 	}	
 	
-	public static void oneRunExperimentSybilHidingBarabasiAlbertRandomGraphs(int n, int m0, int m, int seedTypeId, int attackType, int attackerCount, int k, int maxEditDist, boolean useMETIS, String fileNameOutOriginal, 
+	public static void oneRunExperimentSybilHidingBarabasiAlbertRandomGraphs(int n, int m0, int m, int seedTypeId, int attackType, int attackerCount, int k, int maxEditDist, boolean useMETIS, boolean randomize, String fileNameOutOriginal, 
 			String fileNameOutKGamma1AdjAnonymity, String fileNameOutRandEquivKGamma1AdjAnonymity, String fileNameOutKAutomorphism, String fileNameOutRandEquivKAutomorphism,
 			String fileNameOutWeakKEllSubgraphIsomorphism, String fileNameOutRandEquivWeakKEllSubgraphIsomorphism, String fileNameOutStrongKEllSubgraphIsomorphism, String fileNameOutRandEquivStrongKEllSubgraphIsomorphism) 
 					throws NoSuchAlgorithmException, IOException {
@@ -456,9 +470,9 @@ public class ExperimentsSybilHiding {
 				SimpleGraph<String, DefaultEdge> pertRandEquivKAutomorphicGraph = GraphUtil.cloneGraph(attackedGraph);
 				
 				if (useMETIS)
-					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonKAutomorphicGraph, k, fileNameOutKAutomorphism);
+					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonKAutomorphicGraph, k, randomize, fileNameOutKAutomorphism);
 				else   // use GraMi
-					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonKAutomorphicGraph, k);
+					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonKAutomorphicGraph, k, randomize);
 				FloydWarshallShortestPaths<String, DefaultEdge> floydKAutomorphicGraph = new FloydWarshallShortestPaths<>(anonKAutomorphicGraph);			
 				Statistics.printStatisticsSybilHidingExp(i, outKAutomorphism, anonKAutomorphicGraph, floydKAutomorphicGraph, fileNameOutKAutomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginalAttackedGraph);
 				
@@ -478,9 +492,9 @@ public class ExperimentsSybilHiding {
 				SimpleGraph<String, DefaultEdge> pertRandEquivWeakKEllSubgraphIsomorphicGraph = GraphUtil.cloneGraph(attackedGraph);
 				
 				if (useMETIS)
-					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (k + 1) * attackerCount + 1, fileNameOutWeakKEllSubgraphIsomorphism);
+					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (k + 1) * attackerCount + 1, randomize, fileNameOutWeakKEllSubgraphIsomorphism);
 				else   // use GraMi
-					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (k + 1) * attackerCount + 1);
+					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (k + 1) * attackerCount + 1, randomize);
 				FloydWarshallShortestPaths<String, DefaultEdge> floydWeakKEllSubgraphIsomorphicGraph = new FloydWarshallShortestPaths<>(anonWeakKEllSubgraphIsomorphicGraph);			
 				Statistics.printStatisticsSybilHidingExp(i, outWeakKEllSubgraphIsomorphism, anonWeakKEllSubgraphIsomorphicGraph, floydWeakKEllSubgraphIsomorphicGraph, fileNameOutWeakKEllSubgraphIsomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginalAttackedGraph);
 				
@@ -500,9 +514,9 @@ public class ExperimentsSybilHiding {
 				SimpleGraph<String, DefaultEdge> pertRandEquivStrongKEllSubgraphIsomorphicGraph = GraphUtil.cloneGraph(attackedGraph);
 				
 				if (useMETIS)
-					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, fileNameOutStrongKEllSubgraphIsomorphism);
+					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, randomize, fileNameOutStrongKEllSubgraphIsomorphism);
 				else   // use GraMi
-					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1);
+					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, randomize);
 				FloydWarshallShortestPaths<String, DefaultEdge> floydStrongKEllSubgraphIsomorphicGraph = new FloydWarshallShortestPaths<>(anonStrongKEllSubgraphIsomorphicGraph);			
 				Statistics.printStatisticsSybilHidingExp(i, outStrongKEllSubgraphIsomorphism, anonStrongKEllSubgraphIsomorphicGraph, floydStrongKEllSubgraphIsomorphicGraph, fileNameOutStrongKEllSubgraphIsomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginalAttackedGraph);
 				
@@ -570,7 +584,9 @@ public class ExperimentsSybilHiding {
 		
 		boolean useMETIS = true;
 		
-		if (args.length == 8) {
+		boolean randomize = false;
+		
+		if (args.length == 9) {
 			vernum = Integer.parseInt(args[0]);
 			wsModelParamKValues = new int[1];
 			wsModelParamKValues[0] = Integer.parseInt(args[1]);
@@ -587,10 +603,15 @@ public class ExperimentsSybilHiding {
 				useMETIS = true;
 			else if (args[7].toLowerCase().equals("-grami"))
 				useMETIS = false;
+			if (args[8].toLowerCase().equals("-random"))
+				randomize = true;
+			else if (args[8].toLowerCase().equals("-orig"))
+				randomize = false;
 		}   // else the defaults defined above are taken
 		
 		String expNamePrefix = "Exp1";
 		String expNameSuffix = (useMETIS)? "-METIS" : "-GraMi";
+		expNameSuffix += (randomize)? "-random" : "-orig";
 		
 		for (int wsParamK : wsModelParamKValues) {
 			for (double rho : rhos) {
@@ -608,14 +629,14 @@ public class ExperimentsSybilHiding {
 							String fileNameOutRandEquivWeakKEllSubgraphIsomorphism = expNamePrefix + "-Syb-Hiding-RandEquiv-Weak-" + kmatchK + "-ell-Subgraph-Iso-V-" + vernum + "-K-" + wsParamK + "-Rho-" + rho + "-A-" + attackerCount + "-AttType-" + attackType + "-ED-" + editDist + expNameSuffix;
 							String fileNameOutRandEquivStrongKEllSubgraphIsomorphism = expNamePrefix + "-Syb-Hiding-RandEquiv-Strong-" + kmatchK + "-ell-Subgraph-Iso-V-" + vernum + "-K-" + wsParamK + "-Rho-" + rho + "-A-" + attackerCount + "-AttType-" + attackType + "-ED-" + editDist + expNameSuffix;
 												
-							oneRunExperimentSybilHidingWattsStrogatzRandomGraphs(vernum, wsParamK, rho, attackType, attackerCount, kmatchK, editDist, useMETIS, fileNameOutOriginalWalkBased, fileNameOutKGamma1AdjAnonymity, fileNameOutRandEquivKGamma1AdjAnonymity, fileNameOutKAutomorphism, fileNameOutRandEquivKAutomorphism, fileNameOutWeakKEllSubgraphIsomorphism, fileNameOutRandEquivWeakKEllSubgraphIsomorphism, fileNameOutStrongKEllSubgraphIsomorphism, fileNameOutRandEquivStrongKEllSubgraphIsomorphism);
+							oneRunExperimentSybilHidingWattsStrogatzRandomGraphs(vernum, wsParamK, rho, attackType, attackerCount, kmatchK, editDist, useMETIS, randomize, fileNameOutOriginalWalkBased, fileNameOutKGamma1AdjAnonymity, fileNameOutRandEquivKGamma1AdjAnonymity, fileNameOutKAutomorphism, fileNameOutRandEquivKAutomorphism, fileNameOutWeakKEllSubgraphIsomorphism, fileNameOutRandEquivWeakKEllSubgraphIsomorphism, fileNameOutStrongKEllSubgraphIsomorphism, fileNameOutRandEquivStrongKEllSubgraphIsomorphism);
 					}
 				}
 			}
 		}
 	}
 	
-	public static void oneRunExperimentSybilHidingWattsStrogatzRandomGraphs(int n, int wsParamK, double rho, int attackType, int attackerCount, int kmatchK, int maxEditDist, boolean useMETIS, String fileNameOutOriginal, 
+	public static void oneRunExperimentSybilHidingWattsStrogatzRandomGraphs(int n, int wsParamK, double rho, int attackType, int attackerCount, int kmatchK, int maxEditDist, boolean useMETIS, boolean randomize, String fileNameOutOriginal, 
 			String fileNameOutKGamma1AdjAnonymity, String fileNameOutRandEquivKGamma1AdjAnonymity, String fileNameOutKAutomorphism, String fileNameOutRandEquivKAutomorphism,
 			String fileNameOutWeakKEllSubgraphIsomorphism, String fileNameOutRandEquivWeakKEllSubgraphIsomorphism, String fileNameOutStrongKEllSubgraphIsomorphism, String fileNameOutRandEquivStrongKEllSubgraphIsomorphism) 
 					throws NoSuchAlgorithmException, IOException {
@@ -707,9 +728,9 @@ public class ExperimentsSybilHiding {
 				SimpleGraph<String, DefaultEdge> pertRandEquivKAutomorphicGraph = GraphUtil.cloneGraph(attackedGraph);
 				
 				if (useMETIS)
-					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonKAutomorphicGraph, kmatchK, fileNameOutKAutomorphism);
+					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonKAutomorphicGraph, kmatchK, randomize, fileNameOutKAutomorphism);
 				else   // use GraMi
-					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonKAutomorphicGraph, kmatchK);
+					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonKAutomorphicGraph, kmatchK, randomize);
 				FloydWarshallShortestPaths<String, DefaultEdge> floydKAutomorphicGraph = new FloydWarshallShortestPaths<>(anonKAutomorphicGraph);			
 				Statistics.printStatisticsSybilHidingExp(i, outKAutomorphism, anonKAutomorphicGraph, floydKAutomorphicGraph, fileNameOutKAutomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginalAttackedGraph);
 				
@@ -729,9 +750,9 @@ public class ExperimentsSybilHiding {
 				SimpleGraph<String, DefaultEdge> pertRandEquivWeakKEllSubgraphIsomorphicGraph = GraphUtil.cloneGraph(attackedGraph);
 				
 				if (useMETIS)
-					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (kmatchK + 1) * attackerCount + 1, fileNameOutWeakKEllSubgraphIsomorphism);
+					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (kmatchK + 1) * attackerCount + 1, randomize, fileNameOutWeakKEllSubgraphIsomorphism);
 				else   // use GraMi
-					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (kmatchK + 1) * attackerCount + 1);
+					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonWeakKEllSubgraphIsomorphicGraph, (kmatchK + 1) * attackerCount + 1, randomize);
 				FloydWarshallShortestPaths<String, DefaultEdge> floydWeakKEllSubgraphIsomorphicGraph = new FloydWarshallShortestPaths<>(anonWeakKEllSubgraphIsomorphicGraph);			
 				Statistics.printStatisticsSybilHidingExp(i, outWeakKEllSubgraphIsomorphism, anonWeakKEllSubgraphIsomorphicGraph, floydWeakKEllSubgraphIsomorphicGraph, fileNameOutWeakKEllSubgraphIsomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginalAttackedGraph);
 				
@@ -751,9 +772,9 @@ public class ExperimentsSybilHiding {
 				SimpleGraph<String, DefaultEdge> pertRandEquivStrongKEllSubgraphIsomorphicGraph = GraphUtil.cloneGraph(attackedGraph);
 				
 				if (useMETIS)
-					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (kmatchK - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, fileNameOutStrongKEllSubgraphIsomorphism);
+					KMatchAnonymizerUsingMETIS.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (kmatchK - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, randomize, fileNameOutStrongKEllSubgraphIsomorphism);
 				else   // use GraMi
-					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (kmatchK - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1);
+					KMatchAnonymizerUsingGraMi.anonymizeGraph(anonStrongKEllSubgraphIsomorphicGraph, (kmatchK - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, randomize);
 				FloydWarshallShortestPaths<String, DefaultEdge> floydStrongKEllSubgraphIsomorphicGraph = new FloydWarshallShortestPaths<>(anonStrongKEllSubgraphIsomorphicGraph);			
 				Statistics.printStatisticsSybilHidingExp(i, outStrongKEllSubgraphIsomorphism, anonStrongKEllSubgraphIsomorphicGraph, floydStrongKEllSubgraphIsomorphicGraph, fileNameOutStrongKEllSubgraphIsomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginalAttackedGraph);
 				
@@ -805,31 +826,37 @@ public class ExperimentsSybilHiding {
 	
 	public static void experimentSybilHidingRealNetworks(String [] args) throws NoSuchAlgorithmException, IOException {
 		
-		if (args.length == 6) {
+		if (args.length == 7) {
 			
 			int attackerCount = Integer.parseInt(args[1]);
 			int attackType = Integer.parseInt(args[2]);
 			int editDistance = Integer.parseInt(args[3]);
 			int k = Integer.parseInt(args[4]);
 			boolean useMETIS = false;
+			boolean randomize = false;
 			if (args[5].toLowerCase().equals("-metis"))
 				useMETIS = true;
 			else if (args[5].toLowerCase().equals("-grami"))
 				useMETIS = false;
+			if (args[6].toLowerCase().equals("-random"))
+				randomize = true;
+			else if (args[6].toLowerCase().equals("-orig"))
+				randomize = false;
 			
 			if (args[0].equals("-facebook"))
-				oneRunExperimentSybilHidingRealNetworks("facebook", attackerCount, attackType, editDistance, k, useMETIS);
+				oneRunExperimentSybilHidingRealNetworks("facebook", attackerCount, attackType, editDistance, k, useMETIS, randomize);
 			else if (args[0].equals("-panzarasa"))
-				oneRunExperimentSybilHidingRealNetworks("panzarasa", attackerCount, attackType, editDistance, k, useMETIS);
+				oneRunExperimentSybilHidingRealNetworks("panzarasa", attackerCount, attackType, editDistance, k, useMETIS, randomize);
 			else if (args[0].equals("-urv"))
-				oneRunExperimentSybilHidingRealNetworks("urv", attackerCount, attackType, editDistance, k, useMETIS);
+				oneRunExperimentSybilHidingRealNetworks("urv", attackerCount, attackType, editDistance, k, useMETIS, randomize);
 		}
 	}
 	
-	static void oneRunExperimentSybilHidingRealNetworks(String networkName, int attackerCount, int attackType, int maxEditDist, int k, boolean useMETIS) throws IOException {
+	static void oneRunExperimentSybilHidingRealNetworks(String networkName, int attackerCount, int attackType, int maxEditDist, int k, boolean useMETIS, boolean randomize) throws IOException {
 		
 		String expNamePrefix = "Exp1";
 		String expNameSuffix = (useMETIS)? "-METIS" : "-GraMi";
+		expNameSuffix += (randomize)? "-random" : "-orig";
 		
 		String fileNameOutOriginal = expNamePrefix + "-Syb-Hiding-" + networkName + "-AttType-" + attackType + "-AttCount-" + attackerCount + "-ED-" + maxEditDist + "-original" + expNameSuffix;		
 		String fileNameOutKGamma1AdjAnonymity = expNamePrefix + "-Syb-Hiding-" + networkName + "-AttType-" + attackType + "-AttCount-" + attackerCount + "-ED-" + maxEditDist + "-" + k + "-gamma1-anon" + expNameSuffix;
@@ -946,9 +973,9 @@ public class ExperimentsSybilHiding {
 			SimpleGraph<String, DefaultEdge> graphRandEquivKAutomorphic = GraphUtil.cloneGraph(attackedGraph);
 			
 			if (useMETIS)
-				KMatchAnonymizerUsingMETIS.anonymizeGraph(graphKAutomorphic, k, fileNameOutKAutomorphism);
+				KMatchAnonymizerUsingMETIS.anonymizeGraph(graphKAutomorphic, k, randomize, fileNameOutKAutomorphism);
 			else   // use GraMi
-				KMatchAnonymizerUsingGraMi.anonymizeGraph(graphKAutomorphic, k);
+				KMatchAnonymizerUsingGraMi.anonymizeGraph(graphKAutomorphic, k, randomize);
 			FloydWarshallShortestPaths<String, DefaultEdge> floydKAutomorphic = new FloydWarshallShortestPaths<>(graphKAutomorphic);
 			Statistics.printStatisticsSybilHidingExp(i, outKAutomorphism, graphKAutomorphic, floydKAutomorphic, fileNameOutKAutomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
 			
@@ -968,9 +995,9 @@ public class ExperimentsSybilHiding {
 			SimpleGraph<String, DefaultEdge> graphRandEquivWeakKEllSubgraphIsomorphic = GraphUtil.cloneGraph(attackedGraph);
 			
 			if (useMETIS)
-				KMatchAnonymizerUsingMETIS.anonymizeGraph(graphWeakKEllSubgraphIsomorphic, (k + 1) * attackerCount + 1, fileNameOutWeakKEllSubgraphIsomorphism);
+				KMatchAnonymizerUsingMETIS.anonymizeGraph(graphWeakKEllSubgraphIsomorphic, (k + 1) * attackerCount + 1, randomize, fileNameOutWeakKEllSubgraphIsomorphism);
 			else   // use GraMi 
-				KMatchAnonymizerUsingGraMi.anonymizeGraph(graphWeakKEllSubgraphIsomorphic, (k + 1) * attackerCount + 1);
+				KMatchAnonymizerUsingGraMi.anonymizeGraph(graphWeakKEllSubgraphIsomorphic, (k + 1) * attackerCount + 1, randomize);
 			FloydWarshallShortestPaths<String, DefaultEdge> floydWeakKEllSubgraphIsomorphic = new FloydWarshallShortestPaths<>(graphWeakKEllSubgraphIsomorphic);
 			Statistics.printStatisticsSybilHidingExp(i, outWeakKEllSubgraphIsomorphism, graphWeakKEllSubgraphIsomorphic, floydWeakKEllSubgraphIsomorphic, fileNameOutWeakKEllSubgraphIsomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
 			
@@ -990,9 +1017,9 @@ public class ExperimentsSybilHiding {
 			SimpleGraph<String, DefaultEdge> graphRandEquivStrongKEllSubgraphIsomorphic = GraphUtil.cloneGraph(attackedGraph);
 			
 			if (useMETIS)
-				KMatchAnonymizerUsingMETIS.anonymizeGraph(graphStrongKEllSubgraphIsomorphic, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, fileNameOutStrongKEllSubgraphIsomorphism);
+				KMatchAnonymizerUsingMETIS.anonymizeGraph(graphStrongKEllSubgraphIsomorphic, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, randomize, fileNameOutStrongKEllSubgraphIsomorphism);
 			else   // use GraMi
-				KMatchAnonymizerUsingGraMi.anonymizeGraph(graphStrongKEllSubgraphIsomorphic, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1);
+				KMatchAnonymizerUsingGraMi.anonymizeGraph(graphStrongKEllSubgraphIsomorphic, (k - 1) * (attackerCount * attackerCount - attackerCount + 1) + 1, randomize);
 			FloydWarshallShortestPaths<String, DefaultEdge> floydStrongKEllSubgraphIsomorphic = new FloydWarshallShortestPaths<>(graphStrongKEllSubgraphIsomorphic);
 			Statistics.printStatisticsSybilHidingExp(i, outStrongKEllSubgraphIsomorphism, graphStrongKEllSubgraphIsomorphic, floydStrongKEllSubgraphIsomorphic, fileNameOutStrongKEllSubgraphIsomorphism, attackerCount, victimCount, attackSimulator, attackedGraph, floydOriginal);
 			
@@ -1041,13 +1068,13 @@ public class ExperimentsSybilHiding {
 	//==================================================================================================================
 
 	public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
-		if (args.length == 6)
+		if (args.length == 7)
 			experimentSybilHidingRealNetworks(args);
-		else if (args.length == 7)
-			experimentSybilHidingErdosRenyiRandomNetworks(args);
 		else if (args.length == 8)
-			experimentSybilHidingWattsStrogatzRandomGraphs(args);
+			experimentSybilHidingErdosRenyiRandomNetworks(args);
 		else if (args.length == 9)
+			experimentSybilHidingWattsStrogatzRandomGraphs(args);
+		else if (args.length == 10)
 			experimentSybilHidingBarabasiAlbertRandomGraphs(args);
 		else 
 			System.err.println("Argument list triggers no experiment");

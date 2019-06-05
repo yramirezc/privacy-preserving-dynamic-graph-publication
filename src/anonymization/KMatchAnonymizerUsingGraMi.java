@@ -34,10 +34,10 @@ public class KMatchAnonymizerUsingGraMi {
 	
 	protected static Map<String, List<String>> globalVAT;
 	
-	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k) {
+	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize) {
 		if (k < graph.vertexSet().size()) {
 			globalVAT = new TreeMap<>();
-			performAnonymization(graph, k);
+			performAnonymization(graph, k, randomize);
 		}
 		else {
 			// Convert graph into a K_k
@@ -55,7 +55,7 @@ public class KMatchAnonymizerUsingGraMi {
 		}
 	}
 
-	protected static void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k) {
+	protected static void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize) {
 		
 		UndirectedGraph<String, DefaultEdge> workingGraph = GraphUtil.cloneGraph(graph); 
 		
@@ -117,7 +117,10 @@ public class KMatchAnonymizerUsingGraMi {
 			
 		}
 		
-		copyCrossingEdges(graph);
+		if (randomize)
+			randomlyUniformizeCrossingEdges(graph);
+		else
+			copyCrossingEdges(graph);   // Original approach by Zou et al.
 	}
 	
 	protected static Map<String, List<String>> getGroupVAT(UndirectedGraph<String, DefaultEdge> workingGraph, List<UndirectedGraph<String, DefaultEdge>> group) {
@@ -356,7 +359,32 @@ public class KMatchAnonymizerUsingGraMi {
 						if (graph.containsEdge(globalVAT.get(vatKeys.get(i)).get(j), globalVAT.get(vatKeys.get(p)).get(q))) {
 							int len = globalVAT.get(vatKeys.get(i)).size();
 							for (int offset = 1; offset < len; offset++) 
+								graph.addEdge(globalVAT.get(vatKeys.get(i)).get((j + offset) % len), globalVAT.get(vatKeys.get(p)).get((q + offset) % len));
+						}
+	}
+	
+	protected static void randomlyUniformizeCrossingEdges(UndirectedGraph<String, DefaultEdge> graph) {
+		// When this method is called, all dummy vertices have already been added by one or several calls of alignBlocks
+		SecureRandom random = new SecureRandom();
+		List<String> vatKeys = new ArrayList<>(globalVAT.keySet());
+		for (int i = 0; i < vatKeys.size(); i++)
+			for (int j = 0; j < globalVAT.get(vatKeys.get(i)).size() - 1; j++)
+				for (int p = i; p < vatKeys.size(); p++)
+					for (int q = j + 1; q < globalVAT.get(vatKeys.get(p)).size(); q++) 
+						if (graph.containsEdge(globalVAT.get(vatKeys.get(i)).get(j), globalVAT.get(vatKeys.get(p)).get(q))) {
+							int len = globalVAT.get(vatKeys.get(i)).size();
+							int countExistingCopies = 1;   // Counting current occurrence as a copy 
+							for (int offset = 1; offset < len; offset++) 
+								if (graph.containsEdge(globalVAT.get(vatKeys.get(i)).get((j + offset) % len), globalVAT.get(vatKeys.get(p)).get((q + offset) % len)))
+									countExistingCopies++;
+							// Decide whether to perform an edge copy, with probability countExistingCopies/len, or a removal, with probability (len-countExistingCopies)/len
+							boolean performCopy = (random.nextInt(len) < countExistingCopies);
+							if (performCopy)   // Uniformize by copying
+								for (int offset = 1; offset < len; offset++)
 									graph.addEdge(globalVAT.get(vatKeys.get(i)).get((j + offset) % len), globalVAT.get(vatKeys.get(p)).get((q + offset) % len));
+							else   // Uniformize by removing
+								for (int offset = 0; offset < len; offset++)   // Starts at offset 0 to first remove the current edge
+									graph.removeEdge(globalVAT.get(vatKeys.get(i)).get((j + offset) % len), globalVAT.get(vatKeys.get(p)).get((q + offset) % len));
 						}
 	}
 	
@@ -441,14 +469,23 @@ public class KMatchAnonymizerUsingGraMi {
 		if (!connectivity.isGraphConnected()) 
 			throw new RuntimeException();
 		
-		int origEdgeCount = graph.edgeSet().size();
+		int origEdgeCount = graph.edgeSet().size(), origVertexCount = graph.vertexSet().size();
 		
-		// Apply the method with k=2
-		anonymizeGraph(graph, 2);
-		
-		// Report effect of anonymization on the graph
-		System.out.println("Number of edge modifications: " + Math.abs(graph.edgeSet().size() - origEdgeCount));
-		
+		// Apply the method with k \in {2,...,10}
+		for (int k = 2; k <= 10; k++) {
+			
+			UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
+			anonymizeGraph(clone, 2, false);
+			
+			// Report effect of anonymization on the graph
+			System.out.println("k = " + k);
+			System.out.println("\tOriginal vertex count: " + origVertexCount);
+			System.out.println("\tFinal vertex count: " + clone.vertexSet().size());
+			System.out.println("\tDelta: " + (clone.vertexSet().size() - origVertexCount) + " (" + ((double)(clone.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+			System.out.println("\tOriginal edge count: " + origEdgeCount);
+			System.out.println("\tFinal edge count: " + clone.edgeSet().size());
+			System.out.println("\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+		}
 	}
 
 }
