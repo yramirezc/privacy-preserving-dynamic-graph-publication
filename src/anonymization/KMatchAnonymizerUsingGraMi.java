@@ -4,7 +4,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -14,13 +14,14 @@ import org.jgrapht.Graphs;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.alg.ConnectivityInspector;
 import org.jgrapht.graph.DefaultEdge;
+import net.vivin.GenericTreeNode;
 import real.FacebookGraph;
 import real.PanzarasaGraph;
 import real.URVMailGraph;
+import util.BarabasiAlbertGraphGenerator;
 import util.FrequentSubgraphMinerSingleLargeGraph;
-import util.WrapperGraMiFSM;
-import util.TrivialFrequentSubgraphMinerSingleLargeGraph;
 import util.GraphUtil;
+import util.WrapperGraMiFSM;
 
 /***
  * 
@@ -65,19 +66,8 @@ public class KMatchAnonymizerUsingGraMi {
 		
 		while (workingGraph.edgeSet().size() >= 0) {
 			
-			List<List<UndirectedGraph<String, DefaultEdge>>> frequentSubgraphs = subgraphMiner.frequentSubgraphs(workingGraph, k);
-			
-			int maxEdgeCount = -1;
-			List<UndirectedGraph<String, DefaultEdge>> maxEdgeCountSubgraphs = null;
-			for (List<UndirectedGraph<String, DefaultEdge>> fgs : frequentSubgraphs) {
-				UndirectedGraph<String, DefaultEdge> frGr = fgs.iterator().next();   // Only necessary to take first element, as all of them are isomorphic
-				if (frGr.edgeSet().size() > maxEdgeCount) {
-					maxEdgeCount = frGr.edgeSet().size();
-					maxEdgeCountSubgraphs = fgs;
-				}
-			}
-			
-			List<UndirectedGraph<String, DefaultEdge>> group = maxEdgeCountSubgraphs;
+			UndirectedGraph<String, DefaultEdge> freqSubgrTemplate = subgraphMiner.frequentSubgraphMaxEdgeCount(workingGraph, k);
+			List<UndirectedGraph<String, DefaultEdge>> group = retrieveGroup(workingGraph, freqSubgrTemplate, k);
 			List<UndirectedGraph<String, DefaultEdge>> extendedGroup = new ArrayList<>();
 			Map<String, List<String>> vatGroup = getGroupVAT(workingGraph, group);
 			Map<String, List<String>> vatExtendedGroup = new TreeMap<>();
@@ -121,6 +111,150 @@ public class KMatchAnonymizerUsingGraMi {
 			randomlyUniformizeCrossingEdges(graph);
 		else
 			copyCrossingEdges(graph);   // Original approach by Zou et al.
+	}
+	
+	protected static List<UndirectedGraph<String, DefaultEdge>> retrieveGroup(UndirectedGraph<String, DefaultEdge> workingGraph, UndirectedGraph<String, DefaultEdge> freqSubgrTemplate, int k) {
+		
+		SecureRandom random = new SecureRandom();   // Will be used to randomize all equally optimal decisions
+
+		List<String[]> vertListsMatchingSubgraphs = getAllMatchingSubgraphs(workingGraph, freqSubgrTemplate);
+		List<Set<String>> vertSetsMatchingSubgraphs = new ArrayList<>();
+		for (int i = 0; i < vertListsMatchingSubgraphs.size(); i++) {
+			Set<String> vset = new TreeSet<>();
+			for (int j = 0; j < vertListsMatchingSubgraphs.get(i).length; j++)
+				vset.add(vertListsMatchingSubgraphs.get(i)[j]);
+			vertSetsMatchingSubgraphs.add(vset);
+		}
+		
+		List<UndirectedGraph<String, DefaultEdge>> group = new ArrayList<>();
+		
+		while (vertSetsMatchingSubgraphs.size() > k) {
+			// Remove one of the non-previously removed subgraphs having most vertices in common with the rest
+			int maxCommonVertCount = -1;
+			List<Integer> indsMaxCommonVertCount = null;
+			for (int i = 0; i < vertSetsMatchingSubgraphs.size(); i++) {
+				int inCommon = 0;
+				for (int j = 0; j < vertSetsMatchingSubgraphs.size(); j++)
+					if (j != i) {
+						Set<String> vertsInCommon = new TreeSet<>(vertSetsMatchingSubgraphs.get(i));
+						vertsInCommon.retainAll(vertSetsMatchingSubgraphs.get(j));
+						inCommon += vertsInCommon.size();
+					}
+				if (inCommon > maxCommonVertCount) {
+					maxCommonVertCount = inCommon;
+					indsMaxCommonVertCount = new ArrayList<>();
+					indsMaxCommonVertCount.add(i);
+				}
+				else if (inCommon == maxCommonVertCount)
+					indsMaxCommonVertCount.add(i);
+			}
+			vertSetsMatchingSubgraphs.remove(indsMaxCommonVertCount.get(random.nextInt(indsMaxCommonVertCount.size())).intValue());
+		}
+		
+		for (int i = 0; i < vertSetsMatchingSubgraphs.size(); i++)		
+			group.add(GraphUtil.inducedSubgraph(workingGraph, vertSetsMatchingSubgraphs.get(i)));
+		
+		return null;
+	}
+	
+	// Code adapted from Trujillo's implementation of sybil subgraph retrieval used in the original walk-based attack
+	protected static List<String[]> getAllMatchingSubgraphs(UndirectedGraph<String, DefaultEdge> workingGraph, UndirectedGraph<String, DefaultEdge> freqSubgrTemplate) {
+		
+		Set<String> tempVertSet = new TreeSet<>(freqSubgrTemplate.vertexSet());
+		
+		// Get vertex list decrementally sorted by degree in freqSubgrTemplate, aiming to reduce the search space for BFS
+		List<String> sortedTemplVertList = new ArrayList<>();
+		while (tempVertSet.size() > 1) {
+			int maxDeg = -1;
+			String vertMaxDeg = "";
+			for (String v : tempVertSet)
+				if (freqSubgrTemplate.degreeOf(v) > maxDeg) {
+					maxDeg = freqSubgrTemplate.degreeOf(v);
+					vertMaxDeg = v;
+				}
+			sortedTemplVertList.add(vertMaxDeg);
+			tempVertSet.remove(vertMaxDeg);
+		}
+		// Add last remaining element, if any
+		if (tempVertSet.size() == 1)
+			sortedTemplVertList.add(tempVertSet.iterator().next());
+		
+		// Trujillo's BFS
+		GenericTreeNode<String> root = new GenericTreeNode<>("root");
+		List<GenericTreeNode<String>> currentLevel = new LinkedList<>();
+		List<GenericTreeNode<String>> nextLevel = new LinkedList<>();			
+		for (int i = 0; i < sortedTemplVertList.size(); i++) {
+			nextLevel = new LinkedList<>();
+			for (String vertex : workingGraph.vertexSet()) {
+				//int degree = graph.degreeOf(vertex);
+				//if (degree == fingerprintDegrees[i]) {
+				if (workingGraph.degreeOf(vertex) >= freqSubgrTemplate.degreeOf(sortedTemplVertList.get(i))) {   // In the original method, it was possible to check exact degree, here this is the best we can do
+					if (i == 0) {
+						GenericTreeNode<String> newChild = new GenericTreeNode<>(vertex);
+						root.addChild(newChild);
+						nextLevel.add(newChild);
+					}
+					else {
+						for (GenericTreeNode<String> lastVertex : currentLevel) {
+							boolean ok = true;
+							GenericTreeNode<String> tmp = lastVertex;
+							int pos = i - 1;
+							while (!tmp.equals(root)) {
+								if (tmp.getData().equals(vertex)) {
+									ok = false;
+									break;
+								}
+								//if (graph.containsEdge(vertex, tmp.getData()) && !fingerprintLinks[i][pos]) {
+								if (workingGraph.containsEdge(vertex, tmp.getData()) && !freqSubgrTemplate.containsEdge(sortedTemplVertList.get(i) + "", sortedTemplVertList.get(pos) + "")) {
+									ok = false;
+									break;
+								}
+								//if (!graph.containsEdge(vertex, tmp.getData()) && fingerprintLinks[i][pos]) {
+								if (!workingGraph.containsEdge(vertex, tmp.getData()) && freqSubgrTemplate.containsEdge(sortedTemplVertList.get(i) + "", sortedTemplVertList.get(pos) + "")) {
+									ok = false;
+									break;
+								}
+								pos--;
+								tmp = tmp.getParent();
+							}
+							if (ok) {
+								tmp = new GenericTreeNode<>(vertex);
+								lastVertex.addChild(tmp);
+								nextLevel.add(tmp);
+							}
+						}
+					}
+				}	
+			}
+			currentLevel = nextLevel;
+		}
+		
+		return buildListOfCandidates(root, workingGraph, sortedTemplVertList.size(), sortedTemplVertList.size());
+	}
+	
+	// Code adapted from Trujillo's implementation of sybil subgraph retrieval used in the original walk-based attack
+	protected static List<String[]> buildListOfCandidates(GenericTreeNode<String> root, UndirectedGraph<String, DefaultEdge> graph, int pos, int size) {
+		List<String[]> result = new LinkedList<>();
+		if (pos < 0) 
+			throw new RuntimeException();
+		if (root.isALeaf()) {
+			if (pos > 0) 
+				return result;
+			String[] candidates = new String[size];
+			candidates[size - pos - 1] = root.getData();
+			result.add(candidates);
+			return result;
+		}
+		for (GenericTreeNode<String> child : root.getChildren()){
+			List<String[]> subcandidates = buildListOfCandidates(child, graph, pos-1, size);
+			if (!root.isRoot()) {
+				for (String[] subcandidate : subcandidates) {
+					subcandidate[size-pos-1] = root.getData();
+				}
+			}
+			result.addAll(subcandidates);
+		}
+		return result;
 	}
 	
 	protected static Map<String, List<String>> getGroupVAT(UndirectedGraph<String, DefaultEdge> workingGraph, List<UndirectedGraph<String, DefaultEdge>> group) {
@@ -448,8 +582,10 @@ public class KMatchAnonymizerUsingGraMi {
 			graph = new FacebookGraph(DefaultEdge.class);
 		else if (args.length == 1 && args[0].equals("-panzarasa"))
 			graph = new PanzarasaGraph(DefaultEdge.class);
-		else
+		else if (args.length == 1 && args[0].equals("-urv"))
 			graph = new URVMailGraph(DefaultEdge.class);
+		else
+			graph = BarabasiAlbertGraphGenerator.newGraph(50, 3, 10, 10, 1);
 		
 		ConnectivityInspector<String, DefaultEdge> connectivity = new ConnectivityInspector<>(graph);
 		List<Set<String>> connComp = connectivity.connectedSets();
