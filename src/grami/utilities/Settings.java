@@ -34,7 +34,7 @@ public class Settings
 	
 	public static boolean DISTINCTLABELS = true;
 	
-	public static boolean LimitedTime = false;
+	public static boolean LimitedTime = true;
 
 	public static boolean PRINT = false;
 	
@@ -49,5 +49,9 @@ public class Settings
 		//the filename
 	public static String fileName = null;
 	
-	public static boolean verbose = true;   // YR: minimizing verbosity for background runs
+	public static boolean verbose = true;   // YR: if false, minimize verbosity (for background runs)
+	
+	public static boolean globalRunningTimeLimited = true;   // YR: if true, will stop the search after some time has elapsed
+	
+	public static int globalRunningTimeCapMins = 10;   // YR: time (in minutes) after which, if globalRunningTimeLimited == true, the search will be declared as overtimed, so it will be stopped ASAP  
 }

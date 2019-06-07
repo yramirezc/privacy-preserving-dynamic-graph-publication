@@ -20,12 +20,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-
+import java.util.Timer;
+import java.util.TimerTask;
 import grami.algorithm_interface.Algorithm;
 import grami.dataStructures.DFSCode;
 import grami.dataStructures.HPListGraph;
 import grami.dataStructures.StaticData;
 import grami.utilities.DfscodesCache;
+import grami.utilities.Settings;
 
 
 //import de.parsemis.utils.Frequented;
@@ -44,10 +46,42 @@ import grami.utilities.DfscodesCache;
  */
 public class RecursiveStrategy<NodeType, EdgeType> implements
 		Strategy<NodeType, EdgeType> {
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	/**
+	 * 
+	 * Added by Yunior Ramírez-Cruz, 07/06/2019
+	 * 
+	 * Put a cap on the running time for the entire search process.
+	 * After this time elapses, the search will be stopped ASAP
+	 * 
+	 */
+	
+	class StopFullSearchTask extends TimerTask {
+        public void run() {
+        	if (Settings.globalRunningTimeLimited)
+        		declareSearchOvertimed();
+        	else
+        		System.out.println(Settings.globalRunningTimeCapMins + " minutes passed but search will not be declared overtimed");
+        }
+    }
+	
+	private volatile boolean searchOvertimed = false;
+	private Timer timer;
+	
+	public void declareSearchOvertimed() {
+		searchOvertimed = true;
+		System.out.println("Declared overtimed");
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	private Extender<NodeType, EdgeType> extender;
 
 	private Collection<HPListGraph<NodeType, EdgeType>> ret;
+	
+	
 
 	/*
 	 * (non-Javadoc)
@@ -60,9 +94,16 @@ public class RecursiveStrategy<NodeType, EdgeType> implements
 		ret = new ArrayList<HPListGraph<NodeType, EdgeType>>();
 		
 		extender = algo.getExtender(freqThresh);
+		
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// YR (07/06/2019)
+		searchOvertimed = false;
+		timer = new Timer(true);
+		timer.schedule(new StopFullSearchTask(), Settings.globalRunningTimeCapMins * 60 * 1000);   // Declare search overtimed after Settings.globalRunningTimeCapMins minutes
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		for (final Iterator<SearchLatticeNode<NodeType, EdgeType>> it = algo
-				.initialNodes(); it.hasNext();) {
+		for (final Iterator<SearchLatticeNode<NodeType, EdgeType>> it = algo.initialNodes(); !searchOvertimed && it.hasNext();) {   // YR: also stop looping if overtimed
+						
 			final SearchLatticeNode<NodeType, EdgeType> code = it.next();
 			final long time = System.currentTimeMillis();
 //			if (VERBOSE) {
@@ -91,27 +132,39 @@ public class RecursiveStrategy<NodeType, EdgeType> implements
 //						+ " ms)");
 			//}
 		}
+		
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// YR (07/06/2019)
+		timer.cancel();
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
+		
 		return ret;
 	}
 
 	@SuppressWarnings("unchecked")
 	private void search(final SearchLatticeNode<NodeType, EdgeType> node) {  //RECURSIVE NODES SEARCH
-
-		//System.out.println("Getting Children");
-		final Collection<SearchLatticeNode<NodeType, EdgeType>> tmp = extender
-				.getChildren(node);
-		//System.out.println("finished Getting Children");
-		//System.out.println(node.getLevel());
-		for (final SearchLatticeNode<NodeType, EdgeType> child : tmp) {
-//			if (VVVERBOSE) {
-//				out.println("doing " + child);
-//			}
-			//System.out.println("   branching into: "+child);
-			//System.out.println("   ---------------------");
-			search(child);
+		
+		if (!searchOvertimed) {
 			
+			//System.out.println("Getting Children");
+			final Collection<SearchLatticeNode<NodeType, EdgeType>> tmp = extender
+					.getChildren(node);
+			//System.out.println("finished Getting Children");
+			//System.out.println(node.getLevel());
+			for (final SearchLatticeNode<NodeType, EdgeType> child : tmp) {
+//				if (VVVERBOSE) {
+//					out.println("doing " + child);
+//				}
+				//System.out.println("   branching into: "+child);
+				//System.out.println("   ---------------------");
+				search(child);
+				
+				
+			}
 			
 		}
+
 //		if (VVERBOSE) {
 //			out.println("node " + node + " done. Store: " + node.store()
 //					+ " children " + tmp.size() + " freq "

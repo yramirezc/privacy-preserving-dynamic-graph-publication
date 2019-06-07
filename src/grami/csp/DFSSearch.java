@@ -327,7 +327,8 @@ public class DFSSearch
 					System.out.println(instance);
 				
 		        timer = new Timer(true);
-		        timer.schedule(new StopTask(), 5*1000);
+		        //timer.schedule(new StopTask(), 5*1000);
+		        timer.schedule(new StopTask(), 20*1000);   // YR: changed from 5 to 20 sec
 		        
 		        int value=-1;
 		        
@@ -709,7 +710,8 @@ public class DFSSearch
 		sOrder.reset();
 		setVariableVisitingOrder(orderINdex);
 		timer = new Timer(true);
-        timer.schedule(new StopTask(), 7*1000);
+        //timer.schedule(new StopTask(), 7*1000);
+		timer.schedule(new StopTask(), 20*1000);   // YR: changed from 7 to 20 sec
 		int value=searchExistances(instance);
 		isStopped=false;
 		timer.cancel();
