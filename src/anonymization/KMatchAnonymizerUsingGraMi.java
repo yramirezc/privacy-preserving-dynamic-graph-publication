@@ -14,6 +14,8 @@ import org.jgrapht.Graphs;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.alg.ConnectivityInspector;
 import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+
 import net.vivin.GenericTreeNode;
 import real.FacebookGraph;
 import real.PanzarasaGraph;
@@ -64,47 +66,77 @@ public class KMatchAnonymizerUsingGraMi {
 		
 		List<List<UndirectedGraph<String, DefaultEdge>>> allGroups = new ArrayList<>();
 		
-		while (workingGraph.edgeSet().size() >= 0) {
+		while (workingGraph.edgeSet().size() > k) {
 			
 			UndirectedGraph<String, DefaultEdge> freqSubgrTemplate = subgraphMiner.frequentSubgraphMaxEdgeCount(workingGraph, k);
-			List<UndirectedGraph<String, DefaultEdge>> group = retrieveGroup(workingGraph, freqSubgrTemplate, k);
-			List<UndirectedGraph<String, DefaultEdge>> extendedGroup = new ArrayList<>();
-			Map<String, List<String>> vatGroup = getGroupVAT(workingGraph, group);
-			Map<String, List<String>> vatExtendedGroup = new TreeMap<>();
 			
-			do {
+			if (freqSubgrTemplate != null) {   // There is indeed at least one frequent subgraph
 				
-				for (UndirectedGraph<String, DefaultEdge> block : group) {
-					Set<String> vertsExtendedBlock = block.vertexSet();
-					for (String v : block.vertexSet())
-						vertsExtendedBlock.addAll(Graphs.neighborListOf(workingGraph, v));
-					UndirectedGraph<String, DefaultEdge> extendedBlock = GraphUtil.inducedSubgraph(workingGraph, vertsExtendedBlock);
-					extendedGroup.add(extendedBlock);
-				}
+				List<UndirectedGraph<String, DefaultEdge>> group = retrieveGroup(workingGraph, freqSubgrTemplate, k);
+				List<UndirectedGraph<String, DefaultEdge>> extendedGroup = new ArrayList<>();
+				Map<String, List<String>> vatGroup = getGroupVAT(workingGraph, group);
+				Map<String, List<String>> vatExtendedGroup = new TreeMap<>();
 				
-				vatExtendedGroup = getGroupVAT(workingGraph, extendedGroup);
+				do {
+					
+					for (UndirectedGraph<String, DefaultEdge> block : group) {
+						Set<String> vertsExtendedBlock = block.vertexSet();
+						for (String v : block.vertexSet())
+							vertsExtendedBlock.addAll(Graphs.neighborListOf(workingGraph, v));
+						UndirectedGraph<String, DefaultEdge> extendedBlock = GraphUtil.inducedSubgraph(workingGraph, vertsExtendedBlock);
+						extendedGroup.add(extendedBlock);
+					}
+					
+					vatExtendedGroup = getGroupVAT(workingGraph, extendedGroup);
+					
+					if (groupCost(workingGraph, vatExtendedGroup, true) <= groupCost(workingGraph, vatGroup, true)) {
+						group = extendedGroup;
+						vatGroup = vatExtendedGroup;
+						extendedGroup = new ArrayList<>();
+					}
+					else break;
+					
+				} while (true);
 				
-				if (groupCost(workingGraph, vatExtendedGroup, true) <= groupCost(workingGraph, vatGroup, true)) {
-					group = extendedGroup;
-					vatGroup = vatExtendedGroup;
-					extendedGroup = new ArrayList<>();
-				}
-				else break;
+				// Align blocks in group
+				allGroups.add(group);
+				globalVAT.putAll(vatGroup);
+				alignBlocks(graph, vatGroup);
 				
-			} while (true);
+				// Update workingGraph 
+				for (UndirectedGraph<String, DefaultEdge> block : group)
+					workingGraph.removeAllVertices(block.vertexSet());	
+			}
+			else break;
+		}
+		
+		// If more than 0 vertices remain in workingGraph but no more frequent subgraphs with support k were found, 
+		// create a trivial group, add it to the VAT and apply alignment 
+		if (workingGraph.edgeSet().size() > 0) {
 			
-			// Align blocks in group
-			allGroups.add(group);
-			globalVAT.putAll(vatGroup);
-			alignBlocks(graph, vatGroup);
+			List<Set<String>> vertexSetsTrivialGroup = new ArrayList<>();
+			for (int i = 0; i < k; i++) {
+				Set<String> vset = new TreeSet<>();
+				vertexSetsTrivialGroup.add(vset);
+			}
 			
-			// Update workingGraph 
+			// Get vertex list decrementally sorted by degree 
+			List<String> sortedVertList = GraphUtil.degreeSortedVertexList(workingGraph, false);
 			
-			Set<String> remainingVerts = new TreeSet<>(workingGraph.vertexSet());
-			for (UndirectedGraph<String, DefaultEdge> block : group)
-				remainingVerts.removeAll(block.vertexSet());
-			workingGraph = GraphUtil.inducedSubgraph(graph, remainingVerts);
+			// Assign vertices to groups in round-robin, respecting degree order
+			for (int i = 0; i < sortedVertList.size(); i++)
+				vertexSetsTrivialGroup.get(i % k).add(sortedVertList.get(i));
 			
+			// Create trivial group
+			List<UndirectedGraph<String, DefaultEdge>> trivialGroup = new ArrayList<>();
+			for (int i = 0; i < k; i++) 
+				trivialGroup.add(GraphUtil.inducedSubgraph(workingGraph, vertexSetsTrivialGroup.get(i)));
+			
+			// Add to VAT and apply alignment
+			Map<String, List<String>> vatTrivialGroup = getGroupVAT(workingGraph, trivialGroup);
+			allGroups.add(trivialGroup);
+			globalVAT.putAll(vatTrivialGroup);
+			alignBlocks(graph, vatTrivialGroup);
 		}
 		
 		if (randomize)
@@ -160,24 +192,8 @@ public class KMatchAnonymizerUsingGraMi {
 	// Code adapted from Trujillo's implementation of sybil subgraph retrieval used in the original walk-based attack
 	protected static List<String[]> getAllMatchingSubgraphs(UndirectedGraph<String, DefaultEdge> workingGraph, UndirectedGraph<String, DefaultEdge> freqSubgrTemplate) {
 		
-		Set<String> tempVertSet = new TreeSet<>(freqSubgrTemplate.vertexSet());
-		
 		// Get vertex list decrementally sorted by degree in freqSubgrTemplate, aiming to reduce the search space for BFS
-		List<String> sortedTemplVertList = new ArrayList<>();
-		while (tempVertSet.size() > 1) {
-			int maxDeg = -1;
-			String vertMaxDeg = "";
-			for (String v : tempVertSet)
-				if (freqSubgrTemplate.degreeOf(v) > maxDeg) {
-					maxDeg = freqSubgrTemplate.degreeOf(v);
-					vertMaxDeg = v;
-				}
-			sortedTemplVertList.add(vertMaxDeg);
-			tempVertSet.remove(vertMaxDeg);
-		}
-		// Add last remaining element, if any
-		if (tempVertSet.size() == 1)
-			sortedTemplVertList.add(tempVertSet.iterator().next());
+		List<String> sortedTemplVertList = GraphUtil.degreeSortedVertexList(freqSubgrTemplate, false);
 		
 		// Trujillo's BFS
 		GenericTreeNode<String> root = new GenericTreeNode<>("root");

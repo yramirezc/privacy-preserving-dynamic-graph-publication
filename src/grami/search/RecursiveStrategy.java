@@ -62,7 +62,7 @@ public class RecursiveStrategy<NodeType, EdgeType> implements
         public void run() {
         	if (Settings.globalRunningTimeLimited)
         		declareSearchOvertimed();
-        	else
+        	else if (Settings.verbose)
         		System.out.println(Settings.globalRunningTimeCapMins + " minutes passed but search will not be declared overtimed");
         }
     }
@@ -72,7 +72,8 @@ public class RecursiveStrategy<NodeType, EdgeType> implements
 	
 	public void declareSearchOvertimed() {
 		searchOvertimed = true;
-		System.out.println("Declared overtimed");
+		if (Settings.verbose)
+			System.out.println("Declared overtimed");
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -47,9 +47,11 @@ public class WrapperGraMiFSM implements FrequentSubgraphMinerSingleLargeGraph {
 	
 	@Override
 	public UndirectedGraph<String, DefaultEdge> frequentSubgraphMaxEdgeCount(UndirectedGraph<String, DefaultEdge> graph, int minSupport) {
+		
 		List<UndirectedGraph<String, DefaultEdge>> freqSubgraphs = frequentSubgraphs(graph, minSupport);
 		List<UndirectedGraph<String, DefaultEdge>> fsgMaxEdgeCount = null;
 		int maxEdgeCount = -1;
+		
 		for (UndirectedGraph<String, DefaultEdge> fsg : freqSubgraphs)
 			if (fsg.edgeSet().size() > maxEdgeCount) {
 				maxEdgeCount = fsg.edgeSet().size();
@@ -58,8 +60,13 @@ public class WrapperGraMiFSM implements FrequentSubgraphMinerSingleLargeGraph {
 			}
 			else if (fsg.edgeSet().size() == maxEdgeCount)
 				fsgMaxEdgeCount.add(GraphUtil.cloneGraph(fsg));
-		SecureRandom random = new SecureRandom();
-		return fsgMaxEdgeCount.get(random.nextInt(fsgMaxEdgeCount.size()));
+		
+		if (fsgMaxEdgeCount != null) {
+			SecureRandom random = new SecureRandom();
+			return fsgMaxEdgeCount.get(random.nextInt(fsgMaxEdgeCount.size()));
+		}
+		else
+			return null;
 	}
 	
 	public static void main(String [] args) {		

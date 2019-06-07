@@ -72,8 +72,8 @@ public class OriginalWalkBasedAttackSimulator extends SybilAttackSimulator {
 			sybilVertexDegrees[i] = originalGraph.degreeOf(i+"");
 		}
 		
-		for (int i = 0; i < attackerCount; i++){
-			for (int j = 0; j < attackerCount; j++){
+		for (int i = 0; i < attackerCount; i++) {
+			for (int j = 0; j < attackerCount; j++) {
 				if (originalGraph.containsEdge(i+"", j+""))
 					sybilVertexLinks[i][j] = true;
 				else 

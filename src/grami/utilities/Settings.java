@@ -49,7 +49,7 @@ public class Settings
 		//the filename
 	public static String fileName = null;
 	
-	public static boolean verbose = true;   // YR: if false, minimize verbosity (for background runs)
+	public static boolean verbose = false;   // YR: if false, minimize verbosity (for background runs)
 	
 	public static boolean globalRunningTimeLimited = true;   // YR: if true, will stop the search after some time has elapsed
 	

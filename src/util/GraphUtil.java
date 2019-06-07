@@ -851,19 +851,43 @@ public class GraphUtil {
 		return graph.vertexSet();
 	}
 	
-	public static void generateGraMiInput(UndirectedGraph<String, DefaultEdge> graph, String fileName) throws IOException {
-		Writer out = new FileWriter(fileName, true);
-		out.append("# t 1" + NEW_LINE);
-		List<String> vertList = new ArrayList<>(graph.vertexSet());
-		Collections.sort(vertList);
-		for (int i = 0; i < vertList.size(); i++)
-			out.append("v " + i + " 1" + NEW_LINE);
-		for (int i = 0; i < vertList.size() - 1; i++)
-			for (int j = i + 1; j < vertList.size(); j++)
-				if (graph.containsEdge(vertList.get(i).toString(), vertList.get(j).toString()))
-					out.append("e " + i + " " + j + " 1" + NEW_LINE);
-		out.close();
+	public static List<String> degreeSortedVertexList(UndirectedGraph<String, DefaultEdge> graph, boolean incremental) {
+		
+		Set<String> tempVertSet = new TreeSet<>(graph.vertexSet());
+		List<String> sortedVertList = new ArrayList<>();
+		
+		if (incremental) {
+			while (tempVertSet.size() > 1) {
+				int minDeg = Integer.MAX_VALUE;
+				String vertMinDeg = "";
+				for (String v : tempVertSet)
+					if (graph.degreeOf(v) < minDeg) {
+						minDeg = graph.degreeOf(v);
+						vertMinDeg = v;
+					}
+				sortedVertList.add(vertMinDeg);
+				tempVertSet.remove(vertMinDeg);
+			}
+		}
+		else {   // decremental
+			while (tempVertSet.size() > 1) {
+				int maxDeg = -1;
+				String vertMaxDeg = "";
+				for (String v : tempVertSet)
+					if (graph.degreeOf(v) > maxDeg) {
+						maxDeg = graph.degreeOf(v);
+						vertMaxDeg = v;
+					}
+				sortedVertList.add(vertMaxDeg);
+				tempVertSet.remove(vertMaxDeg);
+			}
+		}
+		
+		// Add last remaining element, if any
+		if (tempVertSet.size() == 1)
+			sortedVertList.add(tempVertSet.iterator().next());
+		
+		return sortedVertList;
 	}
-	
 }
 

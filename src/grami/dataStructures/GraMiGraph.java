@@ -327,7 +327,7 @@ public class GraMiGraph
 	 * This method clones a JGraphT UndirectedGraph<String, DefaultEdge> into a GraMiGraph
 	 * It replicates the implementation of the loadFromFile method, except in what concerns the source of the data
 	 * 
-	 * Its purpose is to enable the class FrequentSubgraphMinerGraMiWrapper
+	 * Its purpose is to enable the class WrapperGraMiFSM
 	 *   
 	 */	
 	

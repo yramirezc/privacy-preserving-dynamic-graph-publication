@@ -694,7 +694,7 @@ public abstract class AdjacencyAnonymizer {
 				}
 				
 				// Determine whether currentSet is 1-antiresolving
-				boolean currentIsUniquelyIdentifiable1Antiresolving = false, currentHasRepr1 = false;
+				boolean currentIsUniquelyIdentifiable1Antiresolving = false;
 				for (String repr : vertsXRepr.keySet())
 					if (vertsXRepr.get(repr).size() < k) {   // Is k'-antiresolving with k' < k
 						
@@ -715,7 +715,6 @@ public abstract class AdjacencyAnonymizer {
 								
 								if (!repr.contains("2")) {
 									countRepr1++;
-									currentHasRepr1 = true;
 								}
 							}
 							else
@@ -776,7 +775,6 @@ public abstract class AdjacencyAnonymizer {
 			ScoredVertexPair selectedNonEdge = null;
 			int maxRemoved = -1;
 			int minReintroduced = originalAntiresolving.size() + 1;
-			int maxBalance = -originalAntiresolving.size() - 1;
 			for (ScoredVertexPair svp : sortedCandNoEdges) {
 				// Check that its inclusion does not re-introduce original 1-antiresolving sets that have already been made k-antiresolving
 				int removed = 0, reintroduced = 0;
@@ -851,209 +849,208 @@ public abstract class AdjacencyAnonymizer {
 	
 	//==================================================================================================================
 	
-		public static void kEllAdjAnonymousTransformation(UndirectedGraph<String, DefaultEdge> graph, int k, int ell) {
-			
-			// We first force the graph to be at least (2,1)-adjacency anonymous, given that the changes performed to attain that purpose 
-			// are never reverted by the remaining edge additions performed by this method 
-			
-			int origSize = graph.edgeSet().size();
-			
-			boolean verbose = false;
-			
-			if (verbose)
-				System.out.println("Min degree before preprocessing: " + GraphUtil.minDegree(graph));
-			
-			enforceK1AdjAnonymity(graph, 2);
-			
-			if (verbose) {
-				System.out.println("Initially added: " + (graph.edgeSet().size() - origSize));
-				System.out.println("Min degree after preprocessing: " + GraphUtil.minDegree(graph));
-			}
-			
-			// From now on, any 1-antiresolving set will have size at least 2
-			
-			// Create initial 2-antiresolving set index
-			if (verbose) {
-				System.out.println("Processing new graph");
-				System.out.println("Order: " + graph.vertexSet().size());
-				System.out.println("Original size: " + graph.edgeSet().size());
-				System.out.println("ell: " + ell);
-			}
-			
-			List<String> orderedVertexSet = new ArrayList<>(graph.vertexSet());
-			
-			TreeMap<VertexPair, Integer> candNonEdges = new TreeMap<>();
-			for (int i = 0; i < orderedVertexSet.size() - 1; i++) {
-				for (int j = i + 1; j < orderedVertexSet.size(); j++) 
-					if (!graph.containsEdge(orderedVertexSet.get(i), orderedVertexSet.get(j))) { 
-						candNonEdges.put(new VertexPair(orderedVertexSet.get(i), orderedVertexSet.get(j)), 0);
+	public static void kEllAdjAnonymousTransformation(UndirectedGraph<String, DefaultEdge> graph, int k, int ell) {
+		
+		// We first force the graph to be at least (2,1)-adjacency anonymous, given that the changes performed to attain that purpose 
+		// are never reverted by the remaining edge additions performed by this method 
+		
+		int origSize = graph.edgeSet().size();
+		
+		boolean verbose = false;
+		
+		if (verbose)
+			System.out.println("Min degree before preprocessing: " + GraphUtil.minDegree(graph));
+		
+		enforceK1AdjAnonymity(graph, 2);
+		
+		if (verbose) {
+			System.out.println("Initially added: " + (graph.edgeSet().size() - origSize));
+			System.out.println("Min degree after preprocessing: " + GraphUtil.minDegree(graph));
+		}
+		
+		// From now on, any 1-antiresolving set will have size at least 2
+		
+		// Create initial 2-antiresolving set index
+		if (verbose) {
+			System.out.println("Processing new graph");
+			System.out.println("Order: " + graph.vertexSet().size());
+			System.out.println("Original size: " + graph.edgeSet().size());
+			System.out.println("ell: " + ell);
+		}
+		
+		List<String> orderedVertexSet = new ArrayList<>(graph.vertexSet());
+		
+		TreeMap<VertexPair, Integer> candNonEdges = new TreeMap<>();
+		for (int i = 0; i < orderedVertexSet.size() - 1; i++) {
+			for (int j = i + 1; j < orderedVertexSet.size(); j++) 
+				if (!graph.containsEdge(orderedVertexSet.get(i), orderedVertexSet.get(j))) { 
+					candNonEdges.put(new VertexPair(orderedVertexSet.get(i), orderedVertexSet.get(j)), 0);
+				}
+		}
+		
+		if (verbose)
+			System.out.println("Number of candidate non-edges: " + candNonEdges.size());
+		
+		// Find original antiresolving sets
+		Map<List<String>, Set<String>> originalAntiresolving = new HashMap<>();   // Entry: [1-antiresolving set, list of 1-resolvable vertices]
+		int countAntiResPrevSizes = 0, countRepr1 = 0;
+		TreeMap<Integer,Integer> countIsomorphismClasses = new TreeMap<>();
+		for (int i = 1; i <= ell; i++) {
+			CombinationIterator<String> combIterator = new CombinationIterator<>(orderedVertexSet, i);
+			List<String> currentSet = combIterator.nextCombinationOrdered();
+			while (currentSet != null) { 
+				
+				// Obtain adjacency representations of every neighboring vertex
+				TreeMap<String, Set<String>> vertsXRepr = new TreeMap<>();
+				for (String v : neighborhood(graph, currentSet)) {
+					String adjRepr = adjRepresentation(graph, v, currentSet);
+					if (vertsXRepr.containsKey(adjRepr))
+						vertsXRepr.get(adjRepr).add(v);
+					else {
+						Set<String> verts = new HashSet<>();
+						verts.add(v);
+						vertsXRepr.put(adjRepr, verts);
 					}
-			}
-			
-			if (verbose)
-				System.out.println("Number of candidate non-edges: " + candNonEdges.size());
-			
-			// Find original antiresolving sets
-			Map<List<String>, Set<String>> originalAntiresolving = new HashMap<>();   // Entry: [1-antiresolving set, list of 1-resolvable vertices]
-			int countAntiResPrevSizes = 0, countRepr1 = 0;
-			TreeMap<Integer,Integer> countIsomorphismClasses = new TreeMap<>();
-			for (int i = 1; i <= ell; i++) {
-				CombinationIterator<String> combIterator = new CombinationIterator<>(orderedVertexSet, i);
-				List<String> currentSet = combIterator.nextCombinationOrdered();
-				while (currentSet != null) { 
-					
-					// Obtain adjacency representations of every neighboring vertex
-					TreeMap<String, Set<String>> vertsXRepr = new TreeMap<>();
-					for (String v : neighborhood(graph, currentSet)) {
-						String adjRepr = adjRepresentation(graph, v, currentSet);
-						if (vertsXRepr.containsKey(adjRepr))
-							vertsXRepr.get(adjRepr).add(v);
-						else {
-							Set<String> verts = new HashSet<>();
-							verts.add(v);
-							vertsXRepr.put(adjRepr, verts);
-						}
-					}
-					
-					for (String repr : vertsXRepr.keySet())
-						if (vertsXRepr.get(repr).size() < k) {   // Is k'-antiresolving with k' < k
-							
-							List<String[]> candidates = GraphUtil.getPotentialAttackerCandidates(GraphUtil.getFingerprintDegrees(graph, currentSet), GraphUtil.getFingerprintLinks(graph, currentSet), graph);
-							
-							if (countIsomorphismClasses.keySet().contains(candidates.size()))
-								countIsomorphismClasses.put(candidates.size(), countIsomorphismClasses.get(candidates.size()).intValue() + 1);
-							else
-								countIsomorphismClasses.put(candidates.size(), 1);
-								
-							if (!repr.contains("2")) {
-								countRepr1++;
-							}
-								
-							
-							if (originalAntiresolving.containsKey(currentSet))
-								originalAntiresolving.get(currentSet).addAll(vertsXRepr.get(repr));   // Despite calling addAll, a single element is being added
-							else {
-								HashSet<String> newEntry = new HashSet<String>();
-								newEntry.addAll(vertsXRepr.get(repr));   // Despite calling addAll, a single element is being added
-								originalAntiresolving.put(currentSet, newEntry);
-							}
-							
-							
-							//break;   // Uncomment if no need for storing all (k' < k)-resolvables
-						}
-					
-					
-						for (VertexPair nonEdge : candNonEdges.keySet())
-							if ((currentSet.contains(nonEdge.source) && !currentSet.contains(nonEdge.dest))   // This IS the appropriate condition for being a candidate. It is the ranking that should be improved  
-								|| (currentSet.contains(nonEdge.dest) && !currentSet.contains(nonEdge.source)))
-								candNonEdges.put(nonEdge, candNonEdges.get(nonEdge).intValue() + 1);
-					
-					
-					currentSet = combIterator.nextCombinationOrdered();
 				}
 				
-				if (verbose)
-					System.out.println("Original number of antiresolving sets of size " + i + ": " + (originalAntiresolving.size() - countAntiResPrevSizes));
-				countAntiResPrevSizes = originalAntiresolving.size();
+				for (String repr : vertsXRepr.keySet())
+					if (vertsXRepr.get(repr).size() < k) {   // Is k'-antiresolving with k' < k
+						
+						List<String[]> candidates = GraphUtil.getPotentialAttackerCandidates(GraphUtil.getFingerprintDegrees(graph, currentSet), GraphUtil.getFingerprintLinks(graph, currentSet), graph);
+						
+						if (countIsomorphismClasses.keySet().contains(candidates.size()))
+							countIsomorphismClasses.put(candidates.size(), countIsomorphismClasses.get(candidates.size()).intValue() + 1);
+						else
+							countIsomorphismClasses.put(candidates.size(), 1);
+							
+						if (!repr.contains("2")) {
+							countRepr1++;
+						}
+							
+						
+						if (originalAntiresolving.containsKey(currentSet))
+							originalAntiresolving.get(currentSet).addAll(vertsXRepr.get(repr));   // Despite calling addAll, a single element is being added
+						else {
+							HashSet<String> newEntry = new HashSet<String>();
+							newEntry.addAll(vertsXRepr.get(repr));   // Despite calling addAll, a single element is being added
+							originalAntiresolving.put(currentSet, newEntry);
+						}
+						
+						
+						//break;   // Uncomment if no need for storing all (k' < k)-resolvables
+					}
 				
-			}
-			
-			if (verbose) {
-				System.out.println("Original number of antiresolving sets: " + originalAntiresolving.size());
-				System.out.println("Original number of vertices with representation (1,1,...,1): " + countRepr1);
-				System.out.println("Isomorphism classes sizes:");
-				for (Integer cnt : countIsomorphismClasses.keySet())
-					System.out.println("\t" + cnt.toString() + ": " + countIsomorphismClasses.get(cnt).toString());
-			}
-			
-			// Sort candidate non-edges by number of times they would modify some fingerprint of a 1-resolvable vertex w.r.t. a 1-antiresolving set
-			TreeSet<ScoredVertexPair> sortedCandNoEdges = new TreeSet<>(Collections.reverseOrder());
-			for (VertexPair nonEdge : candNonEdges.keySet()) {
-				int count = candNonEdges.get(nonEdge);
-				if (count > 0)
-					sortedCandNoEdges.add(new ScoredVertexPair(nonEdge.source, nonEdge.dest, count));
-			}
-			
-			// Eliminating original 1-antiresolving sets
-			Map<List<String>, Set<String>> remainingAntiresolving = originalAntiresolving;
-			while (remainingAntiresolving.size() > 0 && sortedCandNoEdges.size() > 0) {
 				
-				// Get first non-edge by score such that its inclusion does not re-introduce original 1-antiresolving sets that have already been made k-antiresolving
-				ScoredVertexPair selectedNonEdge = null;
-				int maxRemoved = -1;
-				int minReintroduced = originalAntiresolving.size() + 1;
-				int maxBalance = -originalAntiresolving.size() - 1;
-				for (ScoredVertexPair svp : sortedCandNoEdges) {
-					// Check that its inclusion does not re-introduce original 1-antiresolving sets that have already been made k-antiresolving
-					int removed = 0, reintroduced = 0;
-					for (List<String> origAntiRes : originalAntiresolving.keySet()) {
-						boolean wouldBeLessThanKAntiresolving = isLessThanKAntiresolving(graph, svp.source, svp.dest, origAntiRes, k);
-						if (remainingAntiresolving.keySet().contains(origAntiRes) && !wouldBeLessThanKAntiresolving)   // This would be removed here
-							removed++;
-						else if (!remainingAntiresolving.keySet().contains(origAntiRes) && wouldBeLessThanKAntiresolving)   // This was removed in a previous step and would be reintroduced here
-							reintroduced++; 
-					}
-					
-					if (removed > maxRemoved) {
-						maxRemoved = removed;
-						minReintroduced = reintroduced;
-						selectedNonEdge = svp;
-					}
-					else if (removed == maxRemoved && reintroduced < minReintroduced) {
-						minReintroduced = reintroduced;
-						selectedNonEdge = svp;
-					}
-					
+					for (VertexPair nonEdge : candNonEdges.keySet())
+						if ((currentSet.contains(nonEdge.source) && !currentSet.contains(nonEdge.dest))   // This IS the appropriate condition for being a candidate. It is the ranking that should be improved  
+							|| (currentSet.contains(nonEdge.dest) && !currentSet.contains(nonEdge.source)))
+							candNonEdges.put(nonEdge, candNonEdges.get(nonEdge).intValue() + 1);
+				
+				
+				currentSet = combIterator.nextCombinationOrdered();
+			}
+			
+			if (verbose)
+				System.out.println("Original number of antiresolving sets of size " + i + ": " + (originalAntiresolving.size() - countAntiResPrevSizes));
+			countAntiResPrevSizes = originalAntiresolving.size();
+			
+		}
+		
+		if (verbose) {
+			System.out.println("Original number of antiresolving sets: " + originalAntiresolving.size());
+			System.out.println("Original number of vertices with representation (1,1,...,1): " + countRepr1);
+			System.out.println("Isomorphism classes sizes:");
+			for (Integer cnt : countIsomorphismClasses.keySet())
+				System.out.println("\t" + cnt.toString() + ": " + countIsomorphismClasses.get(cnt).toString());
+		}
+		
+		// Sort candidate non-edges by number of times they would modify some fingerprint of a 1-resolvable vertex w.r.t. a 1-antiresolving set
+		TreeSet<ScoredVertexPair> sortedCandNoEdges = new TreeSet<>(Collections.reverseOrder());
+		for (VertexPair nonEdge : candNonEdges.keySet()) {
+			int count = candNonEdges.get(nonEdge);
+			if (count > 0)
+				sortedCandNoEdges.add(new ScoredVertexPair(nonEdge.source, nonEdge.dest, count));
+		}
+		
+		// Eliminating original 1-antiresolving sets
+		Map<List<String>, Set<String>> remainingAntiresolving = originalAntiresolving;
+		while (remainingAntiresolving.size() > 0 && sortedCandNoEdges.size() > 0) {
+			
+			// Get first non-edge by score such that its inclusion does not re-introduce original 1-antiresolving sets that have already been made k-antiresolving
+			ScoredVertexPair selectedNonEdge = null;
+			int maxRemoved = -1;
+			int minReintroduced = originalAntiresolving.size() + 1;
+			for (ScoredVertexPair svp : sortedCandNoEdges) {
+				// Check that its inclusion does not re-introduce original 1-antiresolving sets that have already been made k-antiresolving
+				int removed = 0, reintroduced = 0;
+				for (List<String> origAntiRes : originalAntiresolving.keySet()) {
+					boolean wouldBeLessThanKAntiresolving = isLessThanKAntiresolving(graph, svp.source, svp.dest, origAntiRes, k);
+					if (remainingAntiresolving.keySet().contains(origAntiRes) && !wouldBeLessThanKAntiresolving)   // This would be removed here
+						removed++;
+					else if (!remainingAntiresolving.keySet().contains(origAntiRes) && wouldBeLessThanKAntiresolving)   // This was removed in a previous step and would be reintroduced here
+						reintroduced++; 
+				}
+				
+				if (removed > maxRemoved) {
+					maxRemoved = removed;
+					minReintroduced = reintroduced;
+					selectedNonEdge = svp;
+				}
+				else if (removed == maxRemoved && reintroduced < minReintroduced) {
+					minReintroduced = reintroduced;
+					selectedNonEdge = svp;
+				}
+				
 //					if (removed - reintroduced > maxBalance) {
 //						maxBalance = removed - reintroduced;
 //						selectedNonEdge = svp;
 //					}
+			}
+			
+			if (verbose)
+				System.out.println("maxRemoved == " + maxRemoved + ", minReintroduced == " + minReintroduced);
+			
+			// If it was impossible to select one non-edge that does not reintroduce previously deleted 1-antiresolving sets, 
+			// we will just take the best-scored one
+			// NOW THIS SHOULD NEVER HAPPEN
+			if (selectedNonEdge == null) {	
+				for (ScoredVertexPair svp : sortedCandNoEdges) {
+					selectedNonEdge = svp;
+					break;
 				}
-				
-				if (verbose)
-					System.out.println("maxRemoved == " + maxRemoved + ", minReintroduced == " + minReintroduced);
-				
-				// If it was impossible to select one non-edge that does not reintroduce previously deleted 1-antiresolving sets, 
-				// we will just take the best-scored one
-				// NOW THIS SHOULD NEVER HAPPEN
-				if (selectedNonEdge == null) {	
-					for (ScoredVertexPair svp : sortedCandNoEdges) {
-						selectedNonEdge = svp;
-						break;
-					}
+			}
+			
+			// Add the selected edge to the graph
+			graph.addEdge(selectedNonEdge.source, selectedNonEdge.dest); 
+			candNonEdges.remove(selectedNonEdge);
+			
+			// Update information
+			remainingAntiresolving = new HashMap<>();
+			// Reinitialize candNonEdges
+			for (VertexPair nonEdge : candNonEdges.keySet())
+				candNonEdges.put(nonEdge, 0);
+			for (List<String> origAntiRes : originalAntiresolving.keySet())
+				if (is1Antiresolving(graph, origAntiRes)) {
+					remainingAntiresolving.put(origAntiRes, originalAntiresolving.get(origAntiRes));
+					// Update scores for candidate non-edges
+					for (VertexPair nonEdge : candNonEdges.keySet())
+						if ((origAntiRes.contains(nonEdge.source) && !origAntiRes.contains(nonEdge.dest))  
+							|| (origAntiRes.contains(nonEdge.dest) && !origAntiRes.contains(nonEdge.source)))   // This IS the appropriate condition for being a candidate. It is the ranking that should be improved
+							candNonEdges.put(nonEdge, candNonEdges.get(nonEdge).intValue() + 1);
 				}
-				
-				// Add the selected edge to the graph
-				graph.addEdge(selectedNonEdge.source, selectedNonEdge.dest); 
-				candNonEdges.remove(selectedNonEdge);
-				
-				// Update information
-				remainingAntiresolving = new HashMap<>();
-				// Reinitialize candNonEdges
-				for (VertexPair nonEdge : candNonEdges.keySet())
-					candNonEdges.put(nonEdge, 0);
-				for (List<String> origAntiRes : originalAntiresolving.keySet())
-					if (is1Antiresolving(graph, origAntiRes)) {
-						remainingAntiresolving.put(origAntiRes, originalAntiresolving.get(origAntiRes));
-						// Update scores for candidate non-edges
-						for (VertexPair nonEdge : candNonEdges.keySet())
-							if ((origAntiRes.contains(nonEdge.source) && !origAntiRes.contains(nonEdge.dest))  
-								|| (origAntiRes.contains(nonEdge.dest) && !origAntiRes.contains(nonEdge.source)))   // This IS the appropriate condition for being a candidate. It is the ranking that should be improved
-								candNonEdges.put(nonEdge, candNonEdges.get(nonEdge).intValue() + 1);
-					}
-				if (verbose)
-					System.out.println("Added edge " + selectedNonEdge.toString() + ". Number of remaining unperturbed antiresolving sets: " + remainingAntiresolving.size());
-				if (remainingAntiresolving.size() > 0) {
-					// Re-sort candidate non-edges
-					sortedCandNoEdges = new TreeSet<>(Collections.reverseOrder());
-					for (VertexPair nonEdge : candNonEdges.keySet()) {
-						int count = candNonEdges.get(nonEdge).intValue();
-						if (count > 0)
-							sortedCandNoEdges.add(new ScoredVertexPair(nonEdge.source, nonEdge.dest, count));
-					}
+			if (verbose)
+				System.out.println("Added edge " + selectedNonEdge.toString() + ". Number of remaining unperturbed antiresolving sets: " + remainingAntiresolving.size());
+			if (remainingAntiresolving.size() > 0) {
+				// Re-sort candidate non-edges
+				sortedCandNoEdges = new TreeSet<>(Collections.reverseOrder());
+				for (VertexPair nonEdge : candNonEdges.keySet()) {
+					int count = candNonEdges.get(nonEdge).intValue();
+					if (count > 0)
+						sortedCandNoEdges.add(new ScoredVertexPair(nonEdge.source, nonEdge.dest, count));
 				}
 			}
 		}
+	}
 	
 	//==================================================================================================================
 	
