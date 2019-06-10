@@ -146,7 +146,7 @@ public class RecursiveStrategy<NodeType, EdgeType> implements
 	@SuppressWarnings("unchecked")
 	private void search(final SearchLatticeNode<NodeType, EdgeType> node) {  //RECURSIVE NODES SEARCH
 		
-		if (!searchOvertimed) {
+		if (!searchOvertimed) {   // YR (07/06/2019)
 			
 			//System.out.println("Getting Children");
 			final Collection<SearchLatticeNode<NodeType, EdgeType>> tmp = extender
@@ -164,7 +164,7 @@ public class RecursiveStrategy<NodeType, EdgeType> implements
 				
 			}
 			
-		}
+		}   // YR (07/06/2019)
 
 //		if (VVERBOSE) {
 //			out.println("node " + node + " done. Store: " + node.store()

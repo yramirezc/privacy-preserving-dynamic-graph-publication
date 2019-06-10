@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -149,14 +150,19 @@ public class KMatchAnonymizerUsingGraMi {
 		
 		SecureRandom random = new SecureRandom();   // Will be used to randomize all equally optimal decisions
 
-		List<String[]> vertListsMatchingSubgraphs = getAllMatchingSubgraphs(workingGraph, freqSubgrTemplate);
+		List<List<String>> vertListsMatchingSubgraphs = getMatchingSubgraphs(workingGraph, freqSubgrTemplate);
+		System.out.println("Found " + vertListsMatchingSubgraphs.size() + " matching subgraphs");
 		List<Set<String>> vertSetsMatchingSubgraphs = new ArrayList<>();
 		for (int i = 0; i < vertListsMatchingSubgraphs.size(); i++) {
-			Set<String> vset = new TreeSet<>();
-			for (int j = 0; j < vertListsMatchingSubgraphs.get(i).length; j++)
-				vset.add(vertListsMatchingSubgraphs.get(i)[j]);
-			vertSetsMatchingSubgraphs.add(vset);
+			Set<String> vset = new TreeSet<>(vertListsMatchingSubgraphs.get(i));
+			boolean newSet = true;
+			for (int j = 0; newSet && j < vertSetsMatchingSubgraphs.size(); j++) 
+				if (stringSetsEqual(vset, vertSetsMatchingSubgraphs.get(j)))
+					newSet = false;
+			if (newSet)
+				vertSetsMatchingSubgraphs.add(vset);
 		}
+		System.out.println("Found " + vertSetsMatchingSubgraphs.size() + " different matching subgraphs");
 		
 		List<UndirectedGraph<String, DefaultEdge>> group = new ArrayList<>();
 		
@@ -189,88 +195,64 @@ public class KMatchAnonymizerUsingGraMi {
 		return null;
 	}
 	
-	// Code adapted from Trujillo's implementation of sybil subgraph retrieval used in the original walk-based attack
-	protected static List<String[]> getAllMatchingSubgraphs(UndirectedGraph<String, DefaultEdge> workingGraph, UndirectedGraph<String, DefaultEdge> freqSubgrTemplate) {
+	protected static List<List<String>> getMatchingSubgraphs(UndirectedGraph<String, DefaultEdge> workingGraph, UndirectedGraph<String, DefaultEdge> freqSubgrTemplate) {
 		
-		// Get vertex list decrementally sorted by degree in freqSubgrTemplate, aiming to reduce the search space for BFS
-		List<String> sortedTemplVertList = GraphUtil.degreeSortedVertexList(freqSubgrTemplate, false);
+		List<List<String>> matchingSubgraphs = new ArrayList<>();
 		
-		// Trujillo's BFS
-		GenericTreeNode<String> root = new GenericTreeNode<>("root");
-		List<GenericTreeNode<String>> currentLevel = new LinkedList<>();
-		List<GenericTreeNode<String>> nextLevel = new LinkedList<>();			
-		for (int i = 0; i < sortedTemplVertList.size(); i++) {
-			nextLevel = new LinkedList<>();
-			for (String vertex : workingGraph.vertexSet()) {
-				//int degree = graph.degreeOf(vertex);
-				//if (degree == fingerprintDegrees[i]) {
-				if (workingGraph.degreeOf(vertex) >= freqSubgrTemplate.degreeOf(sortedTemplVertList.get(i))) {   // In the original method, it was possible to check exact degree, here this is the best we can do
-					if (i == 0) {
-						GenericTreeNode<String> newChild = new GenericTreeNode<>(vertex);
-						root.addChild(newChild);
-						nextLevel.add(newChild);
-					}
-					else {
-						for (GenericTreeNode<String> lastVertex : currentLevel) {
-							boolean ok = true;
-							GenericTreeNode<String> tmp = lastVertex;
-							int pos = i - 1;
-							while (!tmp.equals(root)) {
-								if (tmp.getData().equals(vertex)) {
-									ok = false;
-									break;
-								}
-								//if (graph.containsEdge(vertex, tmp.getData()) && !fingerprintLinks[i][pos]) {
-								if (workingGraph.containsEdge(vertex, tmp.getData()) && !freqSubgrTemplate.containsEdge(sortedTemplVertList.get(i) + "", sortedTemplVertList.get(pos) + "")) {
-									ok = false;
-									break;
-								}
-								//if (!graph.containsEdge(vertex, tmp.getData()) && fingerprintLinks[i][pos]) {
-								if (!workingGraph.containsEdge(vertex, tmp.getData()) && freqSubgrTemplate.containsEdge(sortedTemplVertList.get(i) + "", sortedTemplVertList.get(pos) + "")) {
-									ok = false;
-									break;
-								}
-								pos--;
-								tmp = tmp.getParent();
-							}
-							if (ok) {
-								tmp = new GenericTreeNode<>(vertex);
-								lastVertex.addChild(tmp);
-								nextLevel.add(tmp);
-							}
-						}
-					}
-				}	
+		if (freqSubgrTemplate.vertexSet().size() == 1) {
+			
+			for (String v : workingGraph.vertexSet()) {
+				List<String> match = new ArrayList<>();
+				match.add(v);
+				matchingSubgraphs.add(match);
 			}
-			currentLevel = nextLevel;
+		}
+		else if (freqSubgrTemplate.vertexSet().size() > 1) {
+			
+			// Get vertex lists in freqSubgrTemplate and workingGraph incrementally sorted by degree, aiming to reduce the search space for DFS
+			List<String> sortedTemplVertList = GraphUtil.degreeSortedVertexList(freqSubgrTemplate, true);
+			List<String> sortedFullGraphVertList = GraphUtil.degreeSortedVertexList(workingGraph, true);
+			
+			for (int i = 0; i < sortedFullGraphVertList.size(); i++)
+				if (workingGraph.degreeOf(sortedFullGraphVertList.get(i)) >= freqSubgrTemplate.degreeOf(sortedTemplVertList.get(0))) {			
+					List<String> prefix = new ArrayList<>();
+					prefix.add(sortedFullGraphVertList.get(i));
+					List<List<String>> completions = completeMatchings(workingGraph, sortedFullGraphVertList, freqSubgrTemplate, sortedTemplVertList, prefix);
+					matchingSubgraphs.addAll(completions);
+				}
 		}
 		
-		return buildListOfCandidates(root, workingGraph, sortedTemplVertList.size(), sortedTemplVertList.size());
+		return matchingSubgraphs;   // Returns empty if freqSubgrTemplate.vertexSet().size() == 0 
 	}
 	
-	// Code adapted from Trujillo's implementation of sybil subgraph retrieval used in the original walk-based attack
-	protected static List<String[]> buildListOfCandidates(GenericTreeNode<String> root, UndirectedGraph<String, DefaultEdge> graph, int pos, int size) {
-		List<String[]> result = new LinkedList<>();
-		if (pos < 0) 
-			throw new RuntimeException();
-		if (root.isALeaf()) {
-			if (pos > 0) 
-				return result;
-			String[] candidates = new String[size];
-			candidates[size - pos - 1] = root.getData();
-			result.add(candidates);
-			return result;
-		}
-		for (GenericTreeNode<String> child : root.getChildren()){
-			List<String[]> subcandidates = buildListOfCandidates(child, graph, pos-1, size);
-			if (!root.isRoot()) {
-				for (String[] subcandidate : subcandidates) {
-					subcandidate[size-pos-1] = root.getData();
+	protected static List<List<String>> completeMatchings(UndirectedGraph<String, DefaultEdge> workingGraph, List<String> sortedFullGraphVertList, UndirectedGraph<String, DefaultEdge> freqSubgrTemplate, List<String> sortedTemplVertList, List<String> prefix) {
+		
+		List<List<String>> completedMatchingSubgraphs = new ArrayList<>();
+			
+		for (int i = 0; i < sortedFullGraphVertList.size(); i++) 
+			if (workingGraph.degreeOf(sortedFullGraphVertList.get(i)) >= freqSubgrTemplate.degreeOf(sortedTemplVertList.get(prefix.size())) 
+				&& !prefix.contains(sortedFullGraphVertList.get(i))) {   // Discard by degree or occurrence in prefix 
+				
+				// Check edge matching
+				boolean edgesMatch = true;
+				for (int j = 0; edgesMatch && j < prefix.size(); j++)
+					if ((freqSubgrTemplate.containsEdge(sortedTemplVertList.get(j), sortedTemplVertList.get(prefix.size())) && !workingGraph.containsEdge(prefix.get(j), sortedFullGraphVertList.get(i)))
+						|| (!freqSubgrTemplate.containsEdge(sortedTemplVertList.get(j), sortedTemplVertList.get(prefix.size())) && workingGraph.containsEdge(prefix.get(j), sortedFullGraphVertList.get(i)))) 
+						edgesMatch = false;
+				
+				if (edgesMatch) {
+					List<String> extendedPrefix = new ArrayList<>(prefix);
+					extendedPrefix.add(sortedFullGraphVertList.get(i));
+					if (prefix.size() == sortedTemplVertList.size() - 1)   // Matching subgraphs are being completed here
+						completedMatchingSubgraphs.add(extendedPrefix);
+					else {  // Recursion is necessary
+						List<List<String>> completions = completeMatchings(workingGraph, sortedFullGraphVertList, freqSubgrTemplate, sortedTemplVertList, extendedPrefix);
+						completedMatchingSubgraphs.addAll(completions);
+					}
 				}
 			}
-			result.addAll(subcandidates);
-		}
-		return result;
+		
+		return completedMatchingSubgraphs;
 	}
 	
 	protected static Map<String, List<String>> getGroupVAT(UndirectedGraph<String, DefaultEdge> workingGraph, List<UndirectedGraph<String, DefaultEdge>> group) {
@@ -589,6 +571,20 @@ public class KMatchAnonymizerUsingGraMi {
 		}
 		
 		return edgeAdditions + costCrossingEdges;
+	}
+	
+	protected static boolean stringSetsEqual(Set<String> set1, Set<String> set2) {
+		if (set1.size() != set2.size())
+			return false;
+		else {
+			Iterator<String> iter1 = set1.iterator();
+			Iterator<String> iter2 = set2.iterator();
+			for (; iter1.hasNext() && iter2.hasNext(); iter1.next(), iter2.next()) {
+				if (!iter1.equals(iter2))
+					return false;
+			}
+		}
+		return true;
 	}
 	
 	public static void main(String [] args) {
