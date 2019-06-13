@@ -8,13 +8,12 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
 import java.util.TreeSet;
-
 import org.jgrapht.Graphs;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
-
 import codecs.Hamming74Code;
 import codecs.LinearCode;
 import codecs.NonEncodingCode;
@@ -42,6 +41,8 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 	protected boolean generateOnceUnifDistrFp;
 	protected int attackerCountOfGeneratedUnifDistrFp; 
 	protected int victimCountOfGeneratedUnifDistrFp;
+	
+	private Timer timerSubgraphSearch;
 
 	public RobustWalkBasedAttackSimulator(int maxEditDist, boolean sybDegSeqOpt, boolean apprFgPrMatch, boolean useErrorCorrectingFingerprints) {   // This constructor ignores fingerprint dispersion. Kept for back-compatibility
 		maxEditDistance = maxEditDist;
@@ -290,7 +291,15 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 			}
 		}
 		
-		List<String[]> candidates = getPotentialAttackerCandidatesBFS(sybilVertexDegrees, sybilVertexLinks, anonymizedGraph);  
+		if (limitRunningTime) {
+			timerSubgraphSearch = new Timer(true);
+	        timerSubgraphSearch.schedule(new StopSubgraphSearchTask(), timeCapSubgraphSearchMins * 60000);
+		}
+		
+		List<String[]> candidates = getPotentialAttackerCandidatesBFS(sybilVertexDegrees, sybilVertexLinks, anonymizedGraph);
+		
+		if (limitRunningTime)
+			timerSubgraphSearch.cancel();
 		
 		if (candidates.isEmpty()) 
 			return 0;   
@@ -366,15 +375,12 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				
 				if (!exactMatchFailed && exactlyMatchedVictims.size() < originalFingerprints.size()) 
 					if (originalFingerprints.size() - exactlyMatchedVictims.size() <= allFingerprints.size()) {
-						
 						//FingerprintSetMatchingReturnValue matchingResult = approxFingerprintMatching(anonymizedGraph, candidate, allFingerprints, originalFingerprints, matchedVictims);
 						FingerprintSetMatchingReturnValue matchingResult = approxFingerprintMatching(allFingerprints, originalFingerprints, exactlyMatchedVictims, attackerCount);
-						
 						if (matchingResult.maxSimilarity <= 0)
 							successProbForCandidate = 0d;
 						else
-							successProbForCandidate *= 1d / (double)matchingResult.matches.size();
-						
+							successProbForCandidate *= 1d / (double)matchingResult.matches.size();						
 					}
 					else   // The remaining fingerprints are too few for the remaining unmatched victims 
 						successProbForCandidate = 0d;
@@ -458,6 +464,10 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				int minGlbDistValue = 1 + (anonymizedGraph.vertexSet().size() * (anonymizedGraph.vertexSet().size() - 1)) / 2;   // One more than the maximal possible distance (the total amount of edges). This is "positive infinity" in this context.
 				List<List<String>> candidatesMinGlb = new ArrayList<>();
 				for (String v : vertsMinDistValue) {
+					
+					if (limitRunningTime && subgraphSearchOvertimed)
+						break;
+					
 					List<String> currentPartialCandidate = new ArrayList<>();
 					currentPartialCandidate.add(v);
 					List<List<String>> returnedPartialCandidates = new ArrayList<>();
@@ -519,6 +529,10 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				int minGlbDistValue = 1 + (anonymizedGraph.vertexSet().size() * (anonymizedGraph.vertexSet().size() - 1)) / 2;   // One more than the maximal possible distance (the total amount of edges). This is "positive infinity" in this context.
 				List<List<String>> candidatesMinGlb = new ArrayList<>();
 				for (String v : vertsMinDistValue) {
+					
+					if (limitRunningTime && subgraphSearchOvertimed)
+						break;
+					
 					List<String> newCurrentPartialCandidate = new ArrayList<>(currentPartialCandidate);
 					newCurrentPartialCandidate.add(v);
 					List<List<String>> returnedPartialCandidates = new ArrayList<>();
