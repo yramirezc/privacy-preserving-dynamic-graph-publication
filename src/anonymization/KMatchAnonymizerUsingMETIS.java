@@ -60,6 +60,8 @@ public class KMatchAnonymizerUsingMETIS {
 
 	protected static void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomized, String uniqueIdFileName) {
 		
+		List<UndirectedGraph<String, DefaultEdge>> partitions = null;
+		
 		try {
 			
 			// Generate METIS input
@@ -69,7 +71,7 @@ public class KMatchAnonymizerUsingMETIS {
 				generateMetisInput(graph, "C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt", false, vertIdOffset);
 			else
 				generateMetisInput(graph, "/home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt", false, vertIdOffset);
-			
+				
 			// Run METIS
 			Runtime rt = Runtime.getRuntime();
 			String command = null;
@@ -79,6 +81,10 @@ public class KMatchAnonymizerUsingMETIS {
 				command = "/home/users/yramirezcruz/bin/gpmetis /home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt " + k;
 			Process proc = rt.exec(command);
 			proc.waitFor();
+			if (proc.exitValue() != 0) {
+				System.err.println("Exit value of METIS execution: " + proc.exitValue());
+				throw new RuntimeException();
+			}
 			
 			// Load METIS output
 			Map<String, Set<String>> vertsXPart = null;
@@ -86,23 +92,31 @@ public class KMatchAnonymizerUsingMETIS {
 				vertsXPart = loadMetisOutput("C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
 			else
 				vertsXPart = loadMetisOutput("/home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
-			List<UndirectedGraph<String, DefaultEdge>> partitions = new ArrayList<>();
+			partitions = new ArrayList<>();
 			for (String pid : vertsXPart.keySet())
 				partitions.add(GraphUtil.inducedSubgraph(graph, vertsXPart.get(pid)));
 			
-			// Perform the anonymization
-			globalVAT = getVAT(graph, partitions);
-			alignBlocks(graph, globalVAT);
-			if (randomized)
-				randomlyUniformizeCrossingEdges(graph);
-			else
-				copyCrossingEdges(graph);   // Original approach by Zou et al.
+		} catch (IOException | InterruptedException | RuntimeException e) {
 			
-		} catch (IOException e) {
-			// Do nothing, i.e. make no modifications to the graph
-		} catch (InterruptedException e) {
-			// Do nothing, i.e. make no modifications to the graph
+			// If some problem occurred in running METIS, sort vertices decrementally by degree and assign to partitions using round-robin 
+			List<Set<String>> vertsXPart = new ArrayList<>();
+			for (int i = 0; i < k; i++)
+				vertsXPart.add(new TreeSet<String>());
+			List<String> sortedVertList = GraphUtil.degreeSortedVertexList(graph, false);
+			for (int i = 0; i < sortedVertList.size(); i++)
+				vertsXPart.get(i % k).add(sortedVertList.get(i));
+			partitions = new ArrayList<>();
+			for (int i = 0; i < k; i++)
+				partitions.add(GraphUtil.inducedSubgraph(graph, vertsXPart.get(i)));
 		}
+		
+		// Perform the anonymization
+		globalVAT = getVAT(graph, partitions);
+		alignBlocks(graph, globalVAT);
+		if (randomized)
+			randomlyUniformizeCrossingEdges(graph);
+		else
+			copyCrossingEdges(graph);   // Original approach by Zou et al.	
 	}
 	
 	protected static void generateMetisInput(UndirectedGraph<String, DefaultEdge> graph, String fileName, boolean weightedVertices, int vertIdOffset) throws IOException {
@@ -478,7 +492,7 @@ public class KMatchAnonymizerUsingMETIS {
 			else if (args.length == 1 && args[0].equals("-urv"))			
 				graph = new URVMailGraph(DefaultEdge.class);
 			else
-				graph = BarabasiAlbertGraphGenerator.newGraph(51, 0, 20, 10, 3);   // 51 to make partitions not have the same number of vertices and force the addition of dummies
+				graph = BarabasiAlbertGraphGenerator.newGraph(200, 0, 50, 10, 3);   // 51 to make partitions not have the same number of vertices and force the addition of dummies
 			
 			ConnectivityInspector<String, DefaultEdge> connectivity = new ConnectivityInspector<>(graph);
 			List<Set<String>> connComp = connectivity.connectedSets();
@@ -504,18 +518,41 @@ public class KMatchAnonymizerUsingMETIS {
 			// Apply the method with k \in {2,...,10}
 			for (int k = 2; k <= 10; k++) {
 				
-				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
-				anonymizeGraph(clone, k, false, "Tester");
+				System.out.println("k = " + k);
+				
+				System.out.println("\tCopying crossing edges:");
+				
+				UndirectedGraph<String, DefaultEdge> cloneCopyingVersion = GraphUtil.cloneGraph(graph);
+				anonymizeGraph(cloneCopyingVersion, k, false, "TesterCopying");
 				
 				// Report effect of anonymization on the graph
-				System.out.println("k = " + k);
-				System.out.println("\tOriginal vertex count: " + origVertexCount);
-				System.out.println("\tFinal vertex count: " + clone.vertexSet().size());
-				System.out.println("\tDelta: " + (clone.vertexSet().size() - origVertexCount) + " (" + ((double)(clone.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
-				System.out.println("\tOriginal edge count: " + origEdgeCount);
-				System.out.println("\tFinal edge count: " + clone.edgeSet().size());
-				System.out.println("\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
+				System.out.println("\t\tFinal vertex count: " + cloneCopyingVersion.vertexSet().size());
+				System.out.println("\t\tDelta: " + (cloneCopyingVersion.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneCopyingVersion.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
+				System.out.println("\t\tFinal edge count: " + cloneCopyingVersion.edgeSet().size());
+				System.out.println("\t\tDelta: " + (cloneCopyingVersion.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneCopyingVersion.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+				
+				System.out.println("\tRandomizing crossing edges:");
+				
+				UndirectedGraph<String, DefaultEdge> cloneRandomizedVersion = GraphUtil.cloneGraph(graph);
+				anonymizeGraph(cloneRandomizedVersion, k, true, "TesterRandomized");
+				
+				// Report effect of anonymization on the graph
+				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
+				System.out.println("\t\tFinal vertex count: " + cloneRandomizedVersion.vertexSet().size());
+				System.out.println("\t\tDelta: " + (cloneRandomizedVersion.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneRandomizedVersion.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
+				System.out.println("\t\tFinal edge count: " + cloneRandomizedVersion.edgeSet().size());
+				System.out.println("\t\tDelta: " + (cloneRandomizedVersion.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneRandomizedVersion.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+				connectivity = new ConnectivityInspector<>(cloneRandomizedVersion);
+				if (connectivity.isGraphConnected())
+					System.out.println("\t\tAnonymized graph is connected: YES");
+				else
+					System.out.println("\t\tAnonymized graph is connected: NO");
 			}
+			
+			System.out.println("");
 		}
 	}
 	

@@ -13,7 +13,7 @@ public abstract class SybilAttackSimulator {
 	public abstract double successProbability(int attackerCount, int victimCount, UndirectedGraph<String, DefaultEdge> graph, UndirectedGraph<String, DefaultEdge> originalGraph); 
 	
 	protected boolean limitRunningTime = false;
-	protected int timeCapSubgraphSearchMins = 60;
+	protected int timeCapSubgraphSearchInMinutes = 120;
 	protected volatile boolean subgraphSearchOvertimed = false;
 	
 	protected class StopSubgraphSearchTask extends TimerTask {
@@ -25,7 +25,7 @@ public abstract class SybilAttackSimulator {
 	
 	public void setRunningTimeCap(int minsSubgraphSearch) {
 		limitRunningTime = true;
-		timeCapSubgraphSearchMins = minsSubgraphSearch;
+		timeCapSubgraphSearchInMinutes = minsSubgraphSearch;
 	}
 	
 	// Will take the default time cap

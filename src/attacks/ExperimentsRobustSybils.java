@@ -83,7 +83,7 @@ public class ExperimentsRobustSybils {
 			String fileNamePrefixesOutsRandomPerturbations) throws NoSuchAlgorithmException, IOException {
 		
 		if (attackerCount > n) 
-			throw new IllegalArgumentException("The number of attackers cannot be higher " + "than the number of vertices");
+			throw new IllegalArgumentException("The number of attackers cannot be higher than the number of vertices");
 		
 		Writer outOriginalWalkBased = new FileWriter(fileNameOutOriginalWalkBased+".DAT", true);
 		Writer outDistAnonymizationWalkBased = new FileWriter(fileNameOutDistAnonymizationWalkBased+".DAT", true);
@@ -281,7 +281,7 @@ public class ExperimentsRobustSybils {
 			String fileNamePrefixesOutsRandomPerturbations) throws NoSuchAlgorithmException, IOException {
 		
 		if (attackersCount > n) 
-			throw new IllegalArgumentException("The number of attackers cannot be higher " + "than the number of vertices");
+			throw new IllegalArgumentException("The number of attackers cannot be higher than the number of vertices");
 		
 		Writer outOriginalWalkBased = new FileWriter(fileNameOutOriginalWalkBased+".DAT", true);
 		Writer outDistAnonymizationWalkBased = new FileWriter(fileNameOutDistAnonymizationWalkBased+".DAT", true);
@@ -466,7 +466,7 @@ public class ExperimentsRobustSybils {
 			String fileNamePrefixesOutsRandomPerturbations) throws NoSuchAlgorithmException, IOException {
 		
 		if (attackersCount > n) 
-			throw new IllegalArgumentException("The number of attackers cannot be higher " + "than the number of vertices");
+			throw new IllegalArgumentException("The number of attackers cannot be higher than the number of vertices");
 		
 		Writer outOriginalWalkBased = new FileWriter(fileNameOutOriginalWalkBased+".DAT", true);
 		Writer outDistAnonymizationWalkBased = new FileWriter(fileNameOutDistAnonymizationWalkBased+".DAT", true);

@@ -293,7 +293,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		
 		if (limitRunningTime) {
 			timerSubgraphSearch = new Timer(true);
-	        timerSubgraphSearch.schedule(new StopSubgraphSearchTask(), timeCapSubgraphSearchMins * 60000);
+	        timerSubgraphSearch.schedule(new StopSubgraphSearchTask(), timeCapSubgraphSearchInMinutes * 60000);
 		}
 		
 		List<String[]> candidates = getPotentialAttackerCandidatesBFS(sybilVertexDegrees, sybilVertexLinks, anonymizedGraph);

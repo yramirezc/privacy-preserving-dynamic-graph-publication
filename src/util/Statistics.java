@@ -508,6 +508,30 @@ public class Statistics {
 		out.flush();
 	}
 	
+	// For one parameter combination of the sybil hiding experiment
+	public static void printUtilityStatisticsSybilHidingExp(int index, Writer out, UndirectedGraph<String, DefaultEdge> perturbedGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydPerturbed, String uniqueIdentifier,
+			int attackerCount, int victimCount, UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydOriginal) throws IOException {
+		
+		int addedEdges = GraphParameterBasedUtilitiesJGraphT.countEdgeAdditions(originalGraph, perturbedGraph);		
+		int removedEdges = GraphParameterBasedUtilitiesJGraphT.countEdgeRemovals(originalGraph, perturbedGraph);
+		
+		ConnectivityInspector<String, DefaultEdge> connPert = new ConnectivityInspector<>(perturbedGraph);
+		String deltaDiameter = "Inf", deltaEffDiameter = "Inf", deltaRadius = "Inf";
+		if (connPert.isGraphConnected()) {   // originalGraph is known to be connected
+			deltaDiameter = "" + GraphParameterBasedUtilitiesJGraphT.deltaDiameter(originalGraph, floydOriginal, perturbedGraph, floydPerturbed);
+			deltaEffDiameter = "" + GraphParameterBasedUtilitiesJGraphT.deltaEffectiveDiameter(originalGraph, floydOriginal, perturbedGraph, floydPerturbed);
+			deltaRadius = "" + GraphParameterBasedUtilitiesJGraphT.deltaRadius(originalGraph, floydOriginal, perturbedGraph, floydPerturbed);
+		}
+		
+		double deltaGlobalCC = GraphParameterBasedUtilitiesJGraphT.deltaGlobalClusteringCoefficient(originalGraph, perturbedGraph);
+		double deltaAvgdLocalCC = GraphParameterBasedUtilitiesJGraphT.deltaAvgLocalClusteringCoefficient(originalGraph, perturbedGraph);
+		double cosDD = GraphParameterBasedUtilitiesJGraphT.cosineSortedDegreeDistributions(originalGraph, perturbedGraph);
+		
+		String lineToAppend = index + "\t" + addedEdges + "\t" + removedEdges + "\t" + deltaDiameter + "\t" + deltaEffDiameter + "\t" + deltaRadius + "\t" + deltaGlobalCC + "\t" + deltaAvgdLocalCC + "\t" + cosDD + NEW_LINE;
+		out.append(lineToAppend);
+		out.flush();
+	}
+	
 	// This is the version for the (k,1)-adjacency experiments (actually it was not used afterwards, at least not in the ones in the paper)
 	public static void printStatisticsK1(int index, Writer out, UndirectedGraph<String, DefaultEdge> graph, 
 			FloydWarshallShortestPaths<String, DefaultEdge> floyd, int attackerCount, int victimCount, int k, 
