@@ -25,6 +25,7 @@ import real.PanzarasaGraph;
 import real.URVMailGraph;
 import util.BarabasiAlbertGraphGenerator;
 import util.GraphUtil;
+import util.WattsStrogatzGraphGenerator;
 
 /***
  * 
@@ -34,6 +35,8 @@ import util.GraphUtil;
  */
 
 public class KMatchAnonymizerUsingMETIS {
+	
+	protected static int timesExceptionOccurred;
 	
 	protected static Map<String, List<String>> globalVAT;
 	
@@ -81,10 +84,8 @@ public class KMatchAnonymizerUsingMETIS {
 				command = "/home/users/yramirezcruz/bin/gpmetis /home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt " + k;
 			Process proc = rt.exec(command);
 			proc.waitFor();
-			if (proc.exitValue() != 0) {
-				System.err.println("Exit value of METIS execution: " + proc.exitValue());
+			if (proc.exitValue() != 0)   // Unsuccessful execution 	
 				throw new RuntimeException();
-			}
 			
 			// Load METIS output
 			Map<String, Set<String>> vertsXPart = null;
@@ -98,7 +99,11 @@ public class KMatchAnonymizerUsingMETIS {
 			
 		} catch (IOException | InterruptedException | RuntimeException e) {
 			
-			// If some problem occurred in running METIS, sort vertices decrementally by degree and assign to partitions using round-robin 
+			timesExceptionOccurred++;   // Just update, initialization and use up to the caller
+			
+			// Since some problem occurred in running METIS or handling its outputs, 
+			// a naive partition is made by decrementally sorting vertices by degree 
+			// and assigning each vertex to a partition using round-robin 
 			List<Set<String>> vertsXPart = new ArrayList<>();
 			for (int i = 0; i < k; i++)
 				vertsXPart.add(new TreeSet<String>());
@@ -480,6 +485,8 @@ public class KMatchAnonymizerUsingMETIS {
 	
 	public static void main(String [] args) {
 		
+		timesExceptionOccurred = 0;
+		
 		for (int iter = 0; iter < 1000; iter++) {
 			
 			System.out.println("Iteration # " + iter);
@@ -491,8 +498,10 @@ public class KMatchAnonymizerUsingMETIS {
 				graph = new PanzarasaGraph(DefaultEdge.class);
 			else if (args.length == 1 && args[0].equals("-urv"))			
 				graph = new URVMailGraph(DefaultEdge.class);
+			else if ((new SecureRandom()).nextBoolean())
+				graph = BarabasiAlbertGraphGenerator.newGraph(200, 0, 50, 5, 3);
 			else
-				graph = BarabasiAlbertGraphGenerator.newGraph(200, 0, 50, 10, 3);   // 51 to make partitions not have the same number of vertices and force the addition of dummies
+				graph = WattsStrogatzGraphGenerator.newGraph(200, 0, 30, 0.75);
 			
 			ConnectivityInspector<String, DefaultEdge> connectivity = new ConnectivityInspector<>(graph);
 			List<Set<String>> connComp = connectivity.connectedSets();
@@ -554,6 +563,8 @@ public class KMatchAnonymizerUsingMETIS {
 			
 			System.out.println("");
 		}
+		
+		System.out.println(timesExceptionOccurred + " exceptions occurred");
 	}
 	
 }
