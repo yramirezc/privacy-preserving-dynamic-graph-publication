@@ -35,15 +35,13 @@ public class ExperimentsRobustSybils {
 		
 		int vernum = 200;
 		
-		//double[] densities = new double[]{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1};
-		double[] densities = new double[]{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95};
+		double[] densities = new double[] {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95};
 		
 		int attackType = 0;   // Run the original walk-based attack by default 
 		
-		int attackerCounts[] = new int[]{1,4,8,16};
+		int attackerCounts[] = new int[] {1,2,4,8};
 		
-		//int editDistances[] = new int[]{1,2,5,10,20,50};
-		int editDistances[] = new int[]{4};
+		int editDistances[] = new int[] {4, 8};
 		
 		if (args.length == 5) {
 			vernum = Integer.parseInt(args[0]);
@@ -56,7 +54,6 @@ public class ExperimentsRobustSybils {
 			editDistances[0] = Integer.parseInt(args[4]);
 		}   // else the defaults defined above are taken
 		
-		//String expNamePrefix = "Exp3";
 		String expNamePrefix = "Exp4"; 
 		
 		for (double density : densities) {
@@ -90,7 +87,6 @@ public class ExperimentsRobustSybils {
 		Writer outDistTransformationWalkBased = new FileWriter(fileNameOutDistTransformationWalkBased+".DAT", true);
 		Writer outAdjTransformationWalkBased = new FileWriter(fileNameOutAdjTransformationWalkBased+".DAT", true);
 		
-		//int percentages[] = new int[] {1, 5, 10, 15, 20, 25};
 		int percentages[] = new int[] {1, 5, 10};
 		String[] fileNamesOutsRandomPerturbations = new String[percentages.length];
 		Writer[] outsRandomPerturbations = new Writer[percentages.length];
@@ -235,17 +231,17 @@ public class ExperimentsRobustSybils {
 		
 		int vernum = 200;
 		
-		int m0 = 20;
+		int m0 = 50;
 		
-		int[] mValues = new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+		int[] mValues = new int[] {5, 10, 15, 20, 25, 30, 35, 40, 45, 50};
 		
 		int seedTypeId = 3;   // By default, the seed graph is an ER random graph with density 0.5
 		
 		int attackType = 0;   // Run the original walk-based attack by default
 		
-		int attackerCounts[] = new int[]{1,4,8,16};
+		int attackerCounts[] = new int[] {1,2,4,8};
 		
-		int editDistances[] = new int[]{4, 8};
+		int editDistances[] = new int[] {4, 8};
 		
 		if (args.length == 7) {
 			vernum = Integer.parseInt(args[0]);
@@ -420,15 +416,15 @@ public class ExperimentsRobustSybils {
 		
 		int vernum = 200;
 		
-		double[] rhos = new double[]{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
+		double[] rhos = new double[] {0.25, 0.5, 0.75};
 		
-		int[] ks = {20, 40, 60, 80, 100};   // Approximately inducing densities 0.1, 0.2, ... , 0.5
+		int[] ks = new int[] {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};   // Approximately inducing densities 0.05, 0.1, ... , 0.5
 		
 		int attackType = 0;   // Run the original walk-based attack by default
 		
-		int attackerCounts[] = new int[]{1,4,8,16};
+		int attackerCounts[] = new int[] {1,2,4,8};
 		
-		int editDistances[] = new int[]{4,8};
+		int editDistances[] = new int[] {4,8};
 		
 		if (args.length == 6) {
 			vernum = Integer.parseInt(args[0]);
@@ -599,6 +595,7 @@ public class ExperimentsRobustSybils {
 	//==================================================================================================================
 	
 	// On a real social graph (Facebook (full or an ego-net), Panzarasa or URV)
+	// Called from this class's main
 	
 	public static void experimentRobustSybilsRealNetworks(String [] args) throws NoSuchAlgorithmException, IOException {
 		if (args.length == 4) {
@@ -798,6 +795,7 @@ public class ExperimentsRobustSybils {
 	//==================================================================================================================
 		
 	// On a real social graph (Facebook, Panzarasa or URV)
+	// Called from EntryPointExpRobustSybilsOneRealSocNetOnePert.main
 	
 	public static void experimentRobustSybilsRealNetworksOnePerturbation(String [] args) throws NoSuchAlgorithmException, IOException {
 		if (args.length == 5) {

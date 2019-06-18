@@ -27,6 +27,9 @@ import util.WattsStrogatzGraphGenerator;
 import utilities.GraphParameterBasedUtilitiesJGraphT;
 
 public class ExperimentsSybilHiding {
+	
+	protected static int runCount = 100000;
+	protected static boolean limitTimeInRunsOfRobustSybilAttack = false;
 
 	//==================================================================================================================
 	
@@ -36,15 +39,15 @@ public class ExperimentsSybilHiding {
 		
 		int vernum = 200;
 		
-		double[] densities = new double[]{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95};
+		double[] densities = new double[] {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95};
 		
 		int attackType = 0;   // Run the original walk-based attack by default 
 		
-		int attackerCounts[] = new int[]{1,2,4,8};
+		int attackerCounts[] = new int[] {1,2,4,8};
 		
-		int editDistances[] = new int[]{4,8};
+		int editDistances[] = new int[] {4,8};
 		
-		int kValues[] = new int[]{2,3,4,5,6,7,8,9,10};
+		int kValues[] = new int[] {2,5,8};
 		
 		boolean useMETIS = true;
 		
@@ -114,8 +117,6 @@ public class ExperimentsSybilHiding {
 			String fileNameOutWeakKEllSubgraphIsomorphism, String fileNameOutRandEquivWeakKEllSubgraphIsomorphism, String fileNameOutStrongKEllSubgraphIsomorphism, String fileNameOutRandEquivStrongKEllSubgraphIsomorphism) 
 					throws NoSuchAlgorithmException, IOException {
 		
-		boolean limitTimeInRunsOfRobustSybilAttack = false;
-		
 		if (attackerCount > n) 
 			throw new IllegalArgumentException("The number of attackers cannot be higher than the number of vertices");
 		
@@ -180,9 +181,7 @@ public class ExperimentsSybilHiding {
 			if (limitTimeInRunsOfRobustSybilAttack && attackType != 0)
 				attackSimulator.setRunningTimeCap(120);   // Two hours 
 			
-			int total = 100000;
-			
-			for (int i = 1; i <= total ; i++) {
+			for (int i = 1; i <= runCount ; i++) {
 				
 				UndirectedGraph<String, DefaultEdge> attackedGraph = null;
 				ConnectivityInspector<String, DefaultEdge> connInspector = null;
@@ -349,19 +348,19 @@ public class ExperimentsSybilHiding {
 		
 		int vernum = 200;
 		
-		int m0 = 20;
+		int m0 = 50;
 		
-		int[] mValues = new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+		int[] mValues = new int[] {5, 10, 15, 20, 25, 30, 35, 40, 45, 50};
 		
 		int seedTypeId = 3;   // By default, the seed graph is an ER random graph with density 0.5
 		
 		int attackType = 0;   // Run the original walk-based attack by default
 		
-		int attackerCounts[] = new int[]{1,2,4,8};
+		int attackerCounts[] = new int[] {1,2,4,8};
 		
-		int editDistances[] = new int[]{4, 8};
+		int editDistances[] = new int[] {4, 8};
 		
-		int kValues[] = new int[]{2,3,4,5,6,7,8,9,10};
+		int kValues[] = new int[] {2,5,8};
 		
 		boolean useMETIS = true;
 		
@@ -426,9 +425,7 @@ public class ExperimentsSybilHiding {
 			String fileNameOutKGamma1AdjAnonymity, String fileNameOutRandEquivKGamma1AdjAnonymity, String fileNameOutKAutomorphism, String fileNameOutRandEquivKAutomorphism,
 			String fileNameOutWeakKEllSubgraphIsomorphism, String fileNameOutRandEquivWeakKEllSubgraphIsomorphism, String fileNameOutStrongKEllSubgraphIsomorphism, String fileNameOutRandEquivStrongKEllSubgraphIsomorphism) 
 					throws NoSuchAlgorithmException, IOException {
-		
-		boolean limitTimeInRunsOfRobustSybilAttack = false;
-		
+				
 		if (attackerCount > n) 
 			throw new IllegalArgumentException("The number of attackers cannot be higher than the number of vertices");
 		
@@ -491,9 +488,7 @@ public class ExperimentsSybilHiding {
 			if (limitTimeInRunsOfRobustSybilAttack && attackType != 0)
 				attackSimulator.setRunningTimeCap(120);   // Two hours
 			
-			int total = 100000;
-			
-			for (int i = 1; i <= total ; i++) {
+			for (int i = 1; i <= runCount ; i++) {
 				
 				UndirectedGraph<String, DefaultEdge> attackedGraph = null;
 				ConnectivityInspector<String, DefaultEdge> connInspector = null;
@@ -648,17 +643,17 @@ public class ExperimentsSybilHiding {
 		
 		int vernum = 200;
 		
-		double[] rhos = new double[]{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
+		double[] rhos = new double[] {0.25, 0.5, 0.75};
 		
-		int[] wsModelParamKValues = {20, 40, 60, 80, 100};   // Approximately inducing densities 0.1, 0.2, ... , 0.5
+		int[] wsModelParamKValues = new int[] {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};   // Approximately inducing densities 0.05, 0.1, ... , 0.5
 		
 		int attackType = 0;   // Run the original walk-based attack by default
 		
-		int attackerCounts[] = new int[]{1,2,4,8};
+		int attackerCounts[] = new int[] {1,2,4,8};
 		
-		int editDistances[] = new int[]{4,8};
+		int editDistances[] = new int[] {4,8};
 		
-		int kmatchMethodKValues[] = new int[]{2,3,4,5,6,7,8,9,10};
+		int kmatchMethodKValues[] = new int[] {2,5,8};
 		
 		boolean useMETIS = true;
 		
@@ -726,8 +721,6 @@ public class ExperimentsSybilHiding {
 			String fileNameOutWeakKEllSubgraphIsomorphism, String fileNameOutRandEquivWeakKEllSubgraphIsomorphism, String fileNameOutStrongKEllSubgraphIsomorphism, String fileNameOutRandEquivStrongKEllSubgraphIsomorphism) 
 					throws NoSuchAlgorithmException, IOException {
 		
-		boolean limitTimeInRunsOfRobustSybilAttack = false;
-		
 		if (attackerCount > n) 
 			throw new IllegalArgumentException("The number of attackers cannot be higher than the number of vertices");
 		
@@ -791,10 +784,8 @@ public class ExperimentsSybilHiding {
 			
 			if (limitTimeInRunsOfRobustSybilAttack && attackType != 0)
 				attackSimulator.setRunningTimeCap(120);   // Two hours
-			
-			int total = 100000;
-			
-			for (int i = 1; i <= total ; i++) {
+					
+			for (int i = 1; i <= runCount ; i++) {
 				
 				UndirectedGraph<String, DefaultEdge> attackedGraph = null;
 				ConnectivityInspector<String, DefaultEdge> connInspector = null;
@@ -1025,8 +1016,6 @@ public class ExperimentsSybilHiding {
 		
 		int victimCount = attackerCount;
 		
-		boolean limitTimeInRunsOfRobustSybilAttack = false;
-		
 		SybilAttackSimulator attackSimulator = null;
 		
 		switch (attackType) {
@@ -1064,7 +1053,7 @@ public class ExperimentsSybilHiding {
 			break;
 		}
 		
-		for (int i = 0; i < 1000; i++) {	 // Although it is the same graph, every iteration shuffles its vertex set, so the attacker targets different victims
+		for (int i = 0; i < runCount; i++) {	 // Although it is the same graph, every iteration shuffles its vertex set, so the attacker targets different victims
 			
 			if (limitTimeInRunsOfRobustSybilAttack && attackType != 0)
 				if (networkName.equals("facebook"))
@@ -1226,16 +1215,135 @@ public class ExperimentsSybilHiding {
 	//==================================================================================================================
 
 	public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
-		if (args.length == 8)
+		
+		runCount = 100000;
+		limitTimeInRunsOfRobustSybilAttack = false;
+		
+		if (args.length == 8) {
+			runCount = 1000;
 			experimentSybilHidingRealNetworks(args);
+		}
 		else if (args.length == 9)
 			experimentSybilHidingErdosRenyiRandomNetworks(args);
 		else if (args.length == 10)
 			experimentSybilHidingWattsStrogatzRandomGraphs(args);
 		else if (args.length == 11)
 			experimentSybilHidingBarabasiAlbertRandomGraphs(args);
-		else 
-			System.err.println("Argument list triggers no experiment");
+		else {
+			
+			// Non-parallelized experiments
+			
+			runCount = 100;
+			String vernum = "200";
+			
+			String[] statsTypes = new String[] {"-utils", "-all"};
+			String[] attackTypes = new String[] {"3", "1", "9"};
+			String[] attackerCounts = new String[] {"8"};
+			String[] toleranceThresholds = new String[] {"8"};
+			String[] kmatchKValues = new String[] {"2", "5", "8"};
+			String[] metisVariants = new String[] {"-orig", "-random"};
+			
+			// Round 1
+			
+			for (String statType : statsTypes)
+				for (String attType : attackTypes)
+					for (String attCount : attackerCounts)
+						for (String threshold : toleranceThresholds)
+							for (String kmatchKVal : kmatchKValues) {
+								
+								// ER densities 0.1, 0.2, ... , 1
+								
+								String[] densities = new String[] {"0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1"};
+								
+								for (String density : densities) 
+									for (String metisVar : metisVariants) {
+										experimentSybilHidingErdosRenyiRandomNetworks(new String[] {vernum, density, attType, attCount, threshold, kmatchKVal, "-metis", metisVar, statType});
+									}
+								
+								// BA seed type 3
+								
+								String m0 = "50";
+								String[] mValues = new String[] {"5", "10", "15", "20", "25", "30", "35", "40", "45", "50"}; 
+								String seedType = "3";
+								
+								for (String m : mValues)
+									for (String metisVar : metisVariants) {
+										experimentSybilHidingBarabasiAlbertRandomGraphs(new String[] {vernum, m0, m, seedType, attType, attCount, threshold, kmatchKVal, "-metis", metisVar, statType});
+									}
+								
+								// WS rho == 0.25
+								
+								String rho = "0.25";
+								String [] wsModelParamKValues = new String[] {"10", "20", "30", "40", "50", "60", "70", "80", "90", "100"};
+								
+								for (String wsModelKParam : wsModelParamKValues)
+									for (String metisVar : metisVariants) {
+										experimentSybilHidingWattsStrogatzRandomGraphs(new String[] {vernum, wsModelKParam, rho, attType, attCount, threshold, kmatchKVal, "-metis", metisVar, statType});
+									}
+								
+							}
+			
+			// Round 2
+			
+			for (String statType : statsTypes)
+				for (String attType : attackTypes)
+					for (String attCount : attackerCounts)
+						for (String threshold : toleranceThresholds)
+							for (String kmatchKVal : kmatchKValues) {
+								
+								// ER densities 0.1, 0.2, ... , 1
+								
+								String[] densities = new String[] {"0.05", "0.15", "0.25", "0.35", "0.45", "0.55", "0.65", "0.75", "0.85", "0.95"};
+								
+								for (String density : densities) 
+									for (String metisVar : metisVariants) {
+										experimentSybilHidingErdosRenyiRandomNetworks(new String[] {vernum, density, attType, attCount, threshold, kmatchKVal, "-metis", metisVar, statType});
+									}
+								
+								
+								// BA seed type 0
+								
+								String m0 = "50";
+								String seedType = "0";
+								String[] mValues = new String[] {"5", "10", "15", "20", "25", "30", "35", "40", "45", "50"};
+								
+								for (String m : mValues)
+									for (String metisVar : metisVariants) {
+										experimentSybilHidingBarabasiAlbertRandomGraphs(new String[] {vernum, m0, m, seedType, attType, attCount, threshold, kmatchKVal, "-metis", metisVar, statType});
+									}
+								
+								// WS rho == 0.5
+								
+								String rho = "0.5";
+								String [] wsModelParamKValues = new String[] {"10", "20", "30", "40", "50", "60", "70", "80", "90", "100"};
+								
+								for (String wsModelKParam : wsModelParamKValues)
+									for (String metisVar : metisVariants) {
+										experimentSybilHidingWattsStrogatzRandomGraphs(new String[] {vernum, wsModelKParam, rho, attType, attCount, threshold, kmatchKVal, "-metis", metisVar, statType});
+									}
+								
+								// BA seed type 1
+								
+								seedType = "1";
+								
+								for (String m : mValues)
+									for (String metisVar : metisVariants) {
+										experimentSybilHidingBarabasiAlbertRandomGraphs(new String[] {vernum, m0, m, seedType, attType, attCount, threshold, kmatchKVal, "-metis", metisVar, statType});
+									}
+								
+								// WS rho == 0.75
+								
+								rho = "0.75";
+								
+								for (String wsModelKParam : wsModelParamKValues)
+									for (String metisVar : metisVariants) {
+										experimentSybilHidingWattsStrogatzRandomGraphs(new String[] {vernum, wsModelKParam, rho, attType, attCount, threshold, kmatchKVal, "-metis", metisVar, statType});
+									}
+								
+								
+								
+							}
+		}
 	}
 
 }
