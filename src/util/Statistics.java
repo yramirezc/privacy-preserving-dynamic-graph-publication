@@ -11,6 +11,7 @@ import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
 import attacks.SybilAttackSimulator;
+import attacks.SybilAttackSimulator.SubgraphSearchOvertimed;
 import net.vivin.GenericTreeNode;
 import test.AntiResolving;
 import utilities.GraphParameterBasedUtilitiesJGraphT;
@@ -466,7 +467,12 @@ public class Statistics {
 	public static void printStatisticsRobustSybilsExp(int index, Writer out, UndirectedGraph<String, DefaultEdge> graph, FloydWarshallShortestPaths<String, DefaultEdge> floyd, String uniqueIdentifier,
 			int attackerCount, int victimCount, SybilAttackSimulator attackSimulator, UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> originalFloyd) throws IOException {
 		
-		double successProb = attackSimulator.successProbability(attackerCount, victimCount, graph, originalGraph);
+		double successProb;
+		try {
+			successProb = attackSimulator.successProbability(attackerCount, victimCount, graph, originalGraph);
+		} catch (SubgraphSearchOvertimed e) {
+			successProb = 0d;
+		}
 		
 		double addedEdges = 0, removedEdges = 0;
 		for (String v1 : graph.vertexSet())
@@ -486,7 +492,12 @@ public class Statistics {
 	public static void printStatisticsSybilHidingExp(int index, Writer out, UndirectedGraph<String, DefaultEdge> perturbedGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydPerturbed, String uniqueIdentifier,
 			int attackerCount, int victimCount, SybilAttackSimulator attackSimulator, UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> floydOriginal) throws IOException {
 		
-		double successProb = attackSimulator.successProbability(attackerCount, victimCount, perturbedGraph, originalGraph);
+		double successProb;
+		try {
+			successProb = attackSimulator.successProbability(attackerCount, victimCount, perturbedGraph, originalGraph);
+		} catch (SubgraphSearchOvertimed e) {
+			successProb = 0d;
+		}
 		
 		int addedEdges = GraphParameterBasedUtilitiesJGraphT.countEdgeAdditions(originalGraph, perturbedGraph);		
 		int removedEdges = GraphParameterBasedUtilitiesJGraphT.countEdgeRemovals(originalGraph, perturbedGraph);
@@ -532,7 +543,7 @@ public class Statistics {
 		out.flush();
 	}
 	
-	// This is the version for the (k,1)-adjacency experiments (actually it was not used afterwards, at least not in the ones in the paper)
+	// This is the version for the (k,1)-adjacency experiments (actually it was not used afterwards, at least not in the ones in the KAIS paper)
 	public static void printStatisticsK1(int index, Writer out, UndirectedGraph<String, DefaultEdge> graph, 
 			FloydWarshallShortestPaths<String, DefaultEdge> floyd, int attackerCount, int victimCount, int k, 
 			UndirectedGraph<String, DefaultEdge> originalGraph, FloydWarshallShortestPaths<String, DefaultEdge> originalFloyd) throws IOException {

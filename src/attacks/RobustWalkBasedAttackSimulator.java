@@ -264,7 +264,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 	}
 
 	@Override
-	public double successProbability(int attackerCount, int victimCount, UndirectedGraph<String, DefaultEdge> anonymizedGraph, UndirectedGraph<String, DefaultEdge> originalGraph) {
+	public double successProbability(int attackerCount, int victimCount, UndirectedGraph<String, DefaultEdge> anonymizedGraph, UndirectedGraph<String, DefaultEdge> originalGraph) throws SubgraphSearchOvertimed {
 		
 		/**
 		 * In an initial implementation, the number of sybils for the non-error-correcting fingerprint was set and then the larger number of sybils 
@@ -296,7 +296,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 	        timerSubgraphSearch.schedule(new StopSubgraphSearchTask(), timeCapSubgraphSearchInMinutes * 60000);
 		}
 		
-		List<String[]> candidates = getPotentialAttackerCandidatesBFS(sybilVertexDegrees, sybilVertexLinks, anonymizedGraph);
+		List<String[]> candidates = getPotentialAttackerCandidates(sybilVertexDegrees, sybilVertexLinks, anonymizedGraph);
 		
 		if (limitRunningTime)
 			timerSubgraphSearch.cancel();
@@ -437,7 +437,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		return sumPartialSuccessProbs / candidates.size();
 	}
 	
-	protected List<String[]> getPotentialAttackerCandidatesBFS(int[] fingerprintDegrees, boolean[][] fingerprintLinks, UndirectedGraph<String, DefaultEdge> anonymizedGraph) {
+	protected List<String[]> getPotentialAttackerCandidates(int[] fingerprintDegrees, boolean[][] fingerprintLinks, UndirectedGraph<String, DefaultEdge> anonymizedGraph) throws SubgraphSearchOvertimed {
 		
 		int minLocDistValue = 1 + (anonymizedGraph.vertexSet().size() * (anonymizedGraph.vertexSet().size() - 1)) / 2;   // One more than the maximal possible distance (the total amount of edges). This is "positive infinity" in this context.
 		Set<String> vertsMinDistValue = new HashSet<>();
@@ -466,12 +466,12 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				for (String v : vertsMinDistValue) {
 					
 					if (limitRunningTime && subgraphSearchOvertimed)
-						break;
+						throw new SubgraphSearchOvertimed();
 					
 					List<String> currentPartialCandidate = new ArrayList<>();
 					currentPartialCandidate.add(v);
 					List<List<String>> returnedPartialCandidates = new ArrayList<>();
-					int glbDist = getPotentialAttackerCandidatesBFS(fingerprintDegrees, fingerprintLinks, anonymizedGraph, currentPartialCandidate, returnedPartialCandidates);
+					int glbDist = getPotentialAttackerCandidates(fingerprintDegrees, fingerprintLinks, anonymizedGraph, currentPartialCandidate, returnedPartialCandidates);
 					if (glbDist < minGlbDistValue) {
 						minGlbDistValue = glbDist;
 						candidatesMinGlb.clear();
@@ -488,7 +488,7 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 		return finalCandidates;
 	}
 	
-	protected int getPotentialAttackerCandidatesBFS(int[] fingerprintDegrees, boolean[][] fingerprintLinks, UndirectedGraph<String, DefaultEdge> anonymizedGraph, List<String> currentPartialCandidate, List<List<String>> partialCandidates2Return) {
+	protected int getPotentialAttackerCandidates(int[] fingerprintDegrees, boolean[][] fingerprintLinks, UndirectedGraph<String, DefaultEdge> anonymizedGraph, List<String> currentPartialCandidate, List<List<String>> partialCandidates2Return) throws SubgraphSearchOvertimed {
 		
 		int minLocDistValue = 1 + (anonymizedGraph.vertexSet().size() * (anonymizedGraph.vertexSet().size() - 1)) / 2;   // One more than the maximal possible distance (the total amount of edges). This is "positive infinity" in this context.
 		Set<String> vertsMinDistValue = new HashSet<>();
@@ -531,12 +531,12 @@ public class RobustWalkBasedAttackSimulator extends SybilAttackSimulator {
 				for (String v : vertsMinDistValue) {
 					
 					if (limitRunningTime && subgraphSearchOvertimed)
-						break;
+						throw new SubgraphSearchOvertimed();
 					
 					List<String> newCurrentPartialCandidate = new ArrayList<>(currentPartialCandidate);
 					newCurrentPartialCandidate.add(v);
 					List<List<String>> returnedPartialCandidates = new ArrayList<>();
-					int glbDist = getPotentialAttackerCandidatesBFS(fingerprintDegrees, fingerprintLinks, anonymizedGraph, newCurrentPartialCandidate, returnedPartialCandidates);
+					int glbDist = getPotentialAttackerCandidates(fingerprintDegrees, fingerprintLinks, anonymizedGraph, newCurrentPartialCandidate, returnedPartialCandidates);
 					if (glbDist < minGlbDistValue) {
 						minGlbDistValue = glbDist;
 						candidatesMinGlb.clear();
