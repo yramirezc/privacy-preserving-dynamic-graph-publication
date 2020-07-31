@@ -36,11 +36,15 @@ import util.WattsStrogatzGraphGenerator;
 
 public class KMatchAnonymizerUsingMETIS {
 	
-	protected static int timesExceptionOccurred;
+	protected static int timesExceptionOccurred = 0;
 	
-	protected static Map<String, List<String>> globalVAT;
+	protected Map<String, List<String>> globalVAT;
 	
-	public static void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomized, String uniqueIdFileName) {
+	public KMatchAnonymizerUsingMETIS() {
+		globalVAT = null;
+	}
+	
+	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomized, String uniqueIdFileName) {
 		if (k < graph.vertexSet().size()) {
 			globalVAT = new TreeMap<>();
 			performAnonymization(graph, k, randomized, uniqueIdFileName);
@@ -61,7 +65,7 @@ public class KMatchAnonymizerUsingMETIS {
 		}
 	}
 
-	protected static void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomized, String uniqueIdFileName) {
+	protected void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomized, String uniqueIdFileName) {
 		
 		List<UndirectedGraph<String, DefaultEdge>> partitions = null;
 		
@@ -124,7 +128,7 @@ public class KMatchAnonymizerUsingMETIS {
 			copyCrossingEdges(graph);   // Original approach by Zou et al.	
 	}
 	
-	protected static void generateMetisInput(UndirectedGraph<String, DefaultEdge> graph, String fileName, boolean weightedVertices, int vertIdOffset) throws IOException {
+	protected void generateMetisInput(UndirectedGraph<String, DefaultEdge> graph, String fileName, boolean weightedVertices, int vertIdOffset) throws IOException {
 		final String NEW_LINE = System.getProperty("line.separator");
 		int maxDeg = -1;
 		if (weightedVertices) {
@@ -149,7 +153,7 @@ public class KMatchAnonymizerUsingMETIS {
 		metisInputWriter.close();
 	}
 	
-	protected static Map<String, Set<String>> loadMetisOutput(String fileName, int startingVertId) throws IOException {
+	protected Map<String, Set<String>> loadMetisOutput(String fileName, int startingVertId) throws IOException {
 		Map<String, Set<String>> vertsXPart = new TreeMap<>();
 		int vertId = startingVertId;
 		BufferedReader metisOuputReader = new BufferedReader(new FileReader(new File(fileName)));
@@ -169,7 +173,7 @@ public class KMatchAnonymizerUsingMETIS {
 		return vertsXPart;
 	}
 	
-	protected static Map<String, List<String>> getVAT(UndirectedGraph<String, DefaultEdge> workingGraph, List<UndirectedGraph<String, DefaultEdge>> group) {
+	protected Map<String, List<String>> getVAT(UndirectedGraph<String, DefaultEdge> workingGraph, List<UndirectedGraph<String, DefaultEdge>> group) {
 		
 		Map<String, List<String>> auxVAT = new TreeMap<>();
 		Set<String> vertsInVAT = new TreeSet<>();
@@ -361,7 +365,7 @@ public class KMatchAnonymizerUsingMETIS {
 		return auxVAT;
 	}
 	
-	protected static void alignBlocks(UndirectedGraph<String, DefaultEdge> fullGraph, Map<String, List<String>> groupVAT) {
+	protected void alignBlocks(UndirectedGraph<String, DefaultEdge> fullGraph, Map<String, List<String>> groupVAT) {
 		
 		List<String> vatKeys = new ArrayList<>(groupVAT.keySet());
 		
@@ -391,7 +395,7 @@ public class KMatchAnonymizerUsingMETIS {
 		
 	}
 	
-	protected static void copyCrossingEdges(UndirectedGraph<String, DefaultEdge> graph) {
+	protected void copyCrossingEdges(UndirectedGraph<String, DefaultEdge> graph) {
 		// When this method is called, all dummy vertices have already been added by one or several calls of alignBlocks
 		List<String> vatKeys = new ArrayList<>(globalVAT.keySet());
 		for (int i = 0; i < vatKeys.size(); i++)
@@ -405,7 +409,7 @@ public class KMatchAnonymizerUsingMETIS {
 						}
 	}
 	
-	protected static void randomlyUniformizeCrossingEdges(UndirectedGraph<String, DefaultEdge> graph) {
+	protected void randomlyUniformizeCrossingEdges(UndirectedGraph<String, DefaultEdge> graph) {
 		// When this method is called, all dummy vertices have already been added by one or several calls of alignBlocks
 		SecureRandom random = new SecureRandom();
 		List<String> vatKeys = new ArrayList<>(globalVAT.keySet());
@@ -430,7 +434,7 @@ public class KMatchAnonymizerUsingMETIS {
 						}
 	}
 	
-	protected static int groupCost(UndirectedGraph<String, DefaultEdge> workingGraph, Map<String, List<String>> groupVAT, boolean countCrossingEdges) {
+	protected int groupCost(UndirectedGraph<String, DefaultEdge> workingGraph, Map<String, List<String>> groupVAT, boolean countCrossingEdges) {
 		
 		// First, simulate alignBlocks to account for the editions that it would perform 
 		List<String> vatKeys = new ArrayList<>(groupVAT.keySet());
@@ -532,7 +536,8 @@ public class KMatchAnonymizerUsingMETIS {
 				System.out.println("\tCopying crossing edges:");
 				
 				UndirectedGraph<String, DefaultEdge> cloneCopyingVersion = GraphUtil.cloneGraph(graph);
-				anonymizeGraph(cloneCopyingVersion, k, false, "TesterCopying");
+				KMatchAnonymizerUsingMETIS anonymizer = new KMatchAnonymizerUsingMETIS();
+				anonymizer.anonymizeGraph(cloneCopyingVersion, k, false, "TesterCopying");
 				
 				// Report effect of anonymization on the graph
 				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
@@ -545,7 +550,7 @@ public class KMatchAnonymizerUsingMETIS {
 				System.out.println("\tRandomizing crossing edges:");
 				
 				UndirectedGraph<String, DefaultEdge> cloneRandomizedVersion = GraphUtil.cloneGraph(graph);
-				anonymizeGraph(cloneRandomizedVersion, k, true, "TesterRandomized");
+				anonymizer.anonymizeGraph(cloneRandomizedVersion, k, true, "TesterRandomized");
 				
 				// Report effect of anonymization on the graph
 				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
