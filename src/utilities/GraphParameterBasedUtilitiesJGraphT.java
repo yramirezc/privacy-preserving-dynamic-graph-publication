@@ -18,7 +18,7 @@ public class GraphParameterBasedUtilitiesJGraphT {
 
 	public static int countEdgeAdditions(UndirectedGraph<String, DefaultEdge> originalGraph, UndirectedGraph<String, DefaultEdge> perturbedGraph) {
 		int addedEdges = 0;
-		List<String> vertListPert = new ArrayList<>(perturbedGraph.vertexSet());	
+		List<String> vertListPert = new ArrayList<>(perturbedGraph.vertexSet());
 		for (int i = 0; i < vertListPert.size() - 1; i++)
 			for (int j = i + 1; j < vertListPert.size(); j++)
 				if (perturbedGraph.containsEdge(vertListPert.get(i), vertListPert.get(j)) && !originalGraph.containsEdge(vertListPert.get(i), vertListPert.get(j)))

@@ -3,26 +3,33 @@ package anonymization;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 
-public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizerUsingMETIS {
+public class IncrementalKMatchSequenceAnonymizer {
 	
-	protected static int commonK;
-	protected static boolean firstSnapshotAnonymized = false;
+	protected int commonK = 2;
+	protected boolean firstSnapshotAnonymized = false;
 	
-	public static void setCommonK(int k) {
+	public IncrementalKMatchSequenceAnonymizer(int k) {
+		super();
+		setCommonK(k);
+	}
+	
+	public void setCommonK(int k) {
 		commonK = k;
 	}
 	
 	public void anonymizeFirstSnapshot(UndirectedGraph<String, DefaultEdge> graph, boolean randomized, String uniqueIdFileName) {
-		anonymizeGraph(graph, commonK, randomized, uniqueIdFileName);   // Will need some extra actions and maybe some modifications
+		// Based on anonymizeGraph(graph, commonK, randomized, uniqueIdFileName);
+		// Will need some extra actions and maybe some modifications
+		// The static version adds dummy vertices, the dynamic one will not
 		firstSnapshotAnonymized = true;
 	}
 	
 	public void anonymizeNewSnapshot(UndirectedGraph<String, DefaultEdge> graph, boolean randomized, String uniqueIdFileName) {
 		if (firstSnapshotAnonymized) {
-			// TODO: stub to implement
+			
 		}
 		else 
 			anonymizeFirstSnapshot(graph, randomized, uniqueIdFileName);
 	}
-
+	
 }
