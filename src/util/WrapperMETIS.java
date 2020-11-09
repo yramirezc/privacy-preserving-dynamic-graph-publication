@@ -28,14 +28,49 @@ public class WrapperMETIS {
 			pathName = "/home/users/yramirezcruz/metis-5.1.0/graphs";
 	}
 	
-	public List<UndirectedGraph<String, DefaultEdge>> getPartitions(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName, boolean weightedVertices) throws IOException, InterruptedException {
+	public List<UndirectedGraph<String, DefaultEdge>> getPartitionSubgraphs(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName, boolean weightedVertices) throws IOException, InterruptedException {
 		
-		String fileName = pathName + java.io.File.pathSeparator + "workingGraph-" + uniqueIdFileName + ".txt";
-		
-		// Generate input
+		// Run METIS
 		int startingVertId = GraphUtil.minVertexId(graph);
 		int vertIdOffset = 1 - startingVertId;   // To make sure that vertex ids start at 1 as required by METIS
-		generateInputFile(graph, fileName, weightedVertices, vertIdOffset);
+		runMETIS(graph, k, uniqueIdFileName, weightedVertices, vertIdOffset);
+		
+		// Load output
+		Map<String, Set<String>> vertsXPart = null;
+		if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
+			vertsXPart = loadOutputFromFile("C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		else
+			vertsXPart = loadOutputFromFile("/home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		
+		// Build partition subgraphs
+		List<UndirectedGraph<String, DefaultEdge>> partitions = new ArrayList<>();
+		for (String pid : vertsXPart.keySet())
+			partitions.add(GraphUtil.inducedSubgraph(graph, vertsXPart.get(pid)));
+		
+		return partitions;
+	}
+	
+	public Map<String, Set<String>> getPartitionVertSets(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName, boolean weightedVertices) throws IOException, InterruptedException {
+		
+		// Run METIS
+		int startingVertId = GraphUtil.minVertexId(graph);
+		int vertIdOffset = 1 - startingVertId;   // To make sure that vertex ids start at 1 as required by METIS
+		runMETIS(graph, k, uniqueIdFileName, weightedVertices, vertIdOffset);
+				
+		// Load output
+		Map<String, Set<String>> vertsXPart = null;
+		if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
+			vertsXPart = loadOutputFromFile("C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		else
+			vertsXPart = loadOutputFromFile("/home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		
+		return vertsXPart;
+	}
+	
+	protected void runMETIS(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName, boolean weightedVertices, int vertIdOffset) throws IOException, InterruptedException {
+		
+		// Generate input
+		generateInputFile(graph, pathName + java.io.File.pathSeparator + "workingGraph-" + uniqueIdFileName + ".txt", weightedVertices, vertIdOffset);
 		
 		// Run METIS
 		Runtime rt = Runtime.getRuntime();
@@ -49,22 +84,9 @@ public class WrapperMETIS {
 		if (proc.exitValue() != 0)   // Unsuccessful execution 	
 			throw new RuntimeException();
 		
-		// Load output
-		Map<String, Set<String>> vertsXPart = null;
-		if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
-			vertsXPart = loadOutputFromFile("C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
-		else
-			vertsXPart = loadOutputFromFile("/home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
-		
-		// Build partitions data structure
-		List<UndirectedGraph<String, DefaultEdge>> partitions = new ArrayList<>();
-		for (String pid : vertsXPart.keySet())
-			partitions.add(GraphUtil.inducedSubgraph(graph, vertsXPart.get(pid)));
-		
-		return partitions;
 	}
 	
-	public void generateInputFile(UndirectedGraph<String, DefaultEdge> graph, String fileName, boolean weightedVertices, int vertIdOffset) throws IOException { 
+	protected void generateInputFile(UndirectedGraph<String, DefaultEdge> graph, String fileName, boolean weightedVertices, int vertIdOffset) throws IOException { 
 		final String NEW_LINE = System.getProperty("line.separator");
 		int maxDeg = -1;
 		if (weightedVertices) {
