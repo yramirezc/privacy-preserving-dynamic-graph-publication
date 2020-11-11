@@ -20,12 +20,17 @@ import org.jgrapht.graph.DefaultEdge;
 public class WrapperMETIS {
 	
 	String pathName;
+	String executableName;
 
 	public WrapperMETIS() {
-		if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
+		if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0) {   // Running on Windows
 			pathName = "C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs";
-		else   // Currently, "not running on Windows" equals "running on Linux"
+			executableName = "C:\\cygwin64\\usr\\local\\bin\\gpmetis.exe";
+		}
+		else {   // Currently, "not running on Windows" equals "running on Linux"
 			pathName = "/home/users/yramirezcruz/metis-5.1.0/graphs";
+			executableName = "/home/users/yramirezcruz/bin/gpmetis";
+		}
 	}
 	
 	public List<UndirectedGraph<String, DefaultEdge>> getPartitionSubgraphs(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName, boolean weightedVertices) throws IOException, InterruptedException {
@@ -36,11 +41,7 @@ public class WrapperMETIS {
 		runMETIS(graph, k, uniqueIdFileName, weightedVertices, vertIdOffset);
 		
 		// Load output
-		Map<String, Set<String>> vertsXPart = null;
-		if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
-			vertsXPart = loadOutputFromFile("C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
-		else
-			vertsXPart = loadOutputFromFile("/home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		Map<String, Set<String>> vertsXPart = loadOutputFromFile(pathName + java.io.File.pathSeparator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
 		
 		// Build partition subgraphs
 		List<UndirectedGraph<String, DefaultEdge>> partitions = new ArrayList<>();
@@ -58,11 +59,7 @@ public class WrapperMETIS {
 		runMETIS(graph, k, uniqueIdFileName, weightedVertices, vertIdOffset);
 				
 		// Load output
-		Map<String, Set<String>> vertsXPart = null;
-		if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
-			vertsXPart = loadOutputFromFile("C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
-		else
-			vertsXPart = loadOutputFromFile("/home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		Map<String, Set<String>> vertsXPart = loadOutputFromFile(pathName + java.io.File.pathSeparator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
 		
 		return vertsXPart;
 	}
@@ -75,10 +72,7 @@ public class WrapperMETIS {
 		// Run METIS
 		Runtime rt = Runtime.getRuntime();
 		String command = null;
-		if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0)   // Running on Windows
-			command = "C:\\cygwin64\\usr\\local\\bin\\gpmetis.exe C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs\\workingGraph-" + uniqueIdFileName + ".txt " + k;
-		else
-			command = "/home/users/yramirezcruz/bin/gpmetis /home/users/yramirezcruz/metis-5.1.0/graphs/workingGraph-" + uniqueIdFileName + ".txt " + k;
+		command = executableName + " " + pathName + java.io.File.pathSeparator + "workingGraph-" + uniqueIdFileName + ".txt " + k;
 		Process proc = rt.exec(command);
 		proc.waitFor();
 		if (proc.exitValue() != 0)   // Unsuccessful execution 	

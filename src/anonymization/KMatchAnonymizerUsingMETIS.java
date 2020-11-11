@@ -63,7 +63,7 @@ public class KMatchAnonymizerUsingMETIS extends KMatchAnonymizer {
 		anonymizeGraph(graph, k, randomize, "DefaultNameServiceFileKMatchAnonymizerUsingMETIS");
 	}
 
-	protected void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomized, String uniqueIdFileName) {
+	protected void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize, String uniqueIdFileName) {
 		
 		List<UndirectedGraph<String, DefaultEdge>> partition = null;
 		
@@ -82,7 +82,7 @@ public class KMatchAnonymizerUsingMETIS extends KMatchAnonymizer {
 			List<Set<String>> vertsXPart = new ArrayList<>();
 			for (int i = 0; i < k; i++)
 				vertsXPart.add(new TreeSet<String>());
-			List<String> sortedVertList = GraphUtil.degreeSortedVertexList(graph, false);
+			List<String> sortedVertList = GraphUtil.degreeSortedVertexList(graph, null, false);
 			for (int i = 0; i < sortedVertList.size(); i++)
 				vertsXPart.get(i % k).add(sortedVertList.get(i));
 			partition = new ArrayList<>();
@@ -93,13 +93,13 @@ public class KMatchAnonymizerUsingMETIS extends KMatchAnonymizer {
 		// Perform the anonymization
 		globalVAT = getVAT(graph, partition);
 		alignBlocks(graph, globalVAT);
-		if (randomized)
+		if (randomize)
 			randomlyUniformizeCrossingEdges(graph);
 		else
 			copyCrossingEdges(graph);   // Original approach by Zou et al.	
 	}
 	
-	protected Map<String, List<String>> getVAT(UndirectedGraph<String, DefaultEdge> workingGraph, List<UndirectedGraph<String, DefaultEdge>> group) {
+	protected Map<String, List<String>> getVAT(UndirectedGraph<String, DefaultEdge> graph, List<UndirectedGraph<String, DefaultEdge>> group) {
 		
 		Map<String, List<String>> auxVAT = new TreeMap<>();
 		Set<String> vertsInVAT = new TreeSet<>();
@@ -119,7 +119,7 @@ public class KMatchAnonymizerUsingMETIS extends KMatchAnonymizer {
 		
 		if (dummiesNeeded) {
 			
-			int dummyIndex = GraphUtil.maxVertexId(workingGraph) + 1; 
+			int dummyIndex = GraphUtil.maxVertexId(graph) + 1; 
 			
 			for (int i = 0; i < group.size(); i++) {
 				if (group.get(i).vertexSet().size() < maxBlockSize) {

@@ -17,20 +17,26 @@ import util.WrapperMETIS;
 
 public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	
+	/***
+	 * Declarations
+	 */
+	
 	protected static int timesExceptionOccurred = 0;
 	
 	protected int commonK = 2;
 	
 	protected boolean firstSnapshotAnonymized = false;
 	protected Set<String> pendingVertexAdditions;
-	protected Map<String, Set<String>> pendingVertexRemovals;   // Vertices pending removal have their groups assigned  
+	
+	/***
+	 * Public interface
+	 */
 	
 	public IncrementalKMatchSequenceAnonymizer() {
 		globalVAT = null;
 		commonK = 2;
 		firstSnapshotAnonymized = false;
 		pendingVertexAdditions = new TreeSet<>();
-		pendingVertexRemovals = new TreeMap<>();
 	}
 	
 	public IncrementalKMatchSequenceAnonymizer(int k) {
@@ -38,14 +44,12 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		commonK = k;
 		firstSnapshotAnonymized = false;
 		pendingVertexAdditions = new TreeSet<>();
-		pendingVertexRemovals = new TreeMap<>();
 	}
 	
 	public void restart() {
 		globalVAT = null;
 		firstSnapshotAnonymized = false;
 		pendingVertexAdditions = new TreeSet<>();
-		pendingVertexRemovals = new TreeMap<>();
 	}
 	
 	public void restart(int k) {
@@ -69,6 +73,10 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize) {
 		anonymizeGraph(graph, k, randomize, "DefaultNameServiceFileIncrementalKMatchAnonymizerUsingMETIS");
 	}
+	
+	/***
+	 * Methods for anonymizing the first snapshot (first ever or first after a call of restart())
+	 */
 	
 	protected void anonymizeFirstSnapshot(UndirectedGraph<String, DefaultEdge> graph, boolean randomize, String uniqueIdFileName) {
 		// The static version adds dummy vertices, the dynamic one will not
@@ -102,14 +110,6 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		firstSnapshotAnonymized = true;
 	}
 	
-	protected void anonymizeNewSnapshot(UndirectedGraph<String, DefaultEdge> graph, boolean randomize, String uniqueIdFileName) {
-		if (firstSnapshotAnonymized) {
-			
-		}
-		else 
-			anonymizeFirstSnapshot(graph, randomize, uniqueIdFileName);
-	}
-	
 	protected void performAnonymizationFirstSnapshot(UndirectedGraph<String, DefaultEdge> graph, boolean randomized, String uniqueIdFileName) {
 		
 		Map<String, Set<String>> partition = null;
@@ -129,7 +129,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			partition = new TreeMap<>();
 			for (int i = 0; i < commonK; i++)
 				partition.put((i + 1) + "", new TreeSet<String>());
-			List<String> sortedVertList = GraphUtil.degreeSortedVertexList(graph, false);
+			List<String> sortedVertList = GraphUtil.degreeSortedVertexList(graph, null, false);
 			for (int i = 0; i < sortedVertList.size(); i++)
 				partition.get((i % commonK) + "").add(sortedVertList.get(i));
 		}
@@ -143,7 +143,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			copyCrossingEdges(graph);   // Original approach by Zou et al.	
 	}
 	
-	protected Map<String, List<String>> initializeVAT(UndirectedGraph<String, DefaultEdge> workingGraph, Map<String, Set<String>> partition) {
+	protected Map<String, List<String>> initializeVAT(UndirectedGraph<String, DefaultEdge> graph, Map<String, Set<String>> partition) {
 		
 		Map<String, List<String>> auxVAT = new TreeMap<>();
 		Set<String> vertsInVAT = new TreeSet<>();
@@ -156,11 +156,11 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		List<String> blocksMissingVertices = new ArrayList<>();
 		List<String> blocksExcessVertices = new ArrayList<>();
 		for (String partId : partition.keySet()) {
-			if (partition.get(partId).size() < workingGraph.vertexSet().size() / commonK) {
+			if (partition.get(partId).size() < graph.vertexSet().size() / commonK) {
 				blocksMissingVertices.add(partId);
 				balancingNeeded = true;
 			}
-			else if (partition.get(partId).size() > workingGraph.vertexSet().size() / commonK) {
+			else if (partition.get(partId).size() > graph.vertexSet().size() / commonK) {
 				blocksExcessVertices.add(partId);
 				balancingNeeded = true;
 			}
@@ -173,7 +173,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			List<String> exVerts = new ArrayList<>(partition.get(randBlockExcessVerts));
 			String vertToSwitch = exVerts.get(random.nextInt(exVerts.size()));
 			partition.get(randBlockExcessVerts).remove(vertToSwitch);
-			if (partition.get(randBlockExcessVerts).size() == workingGraph.vertexSet().size() / commonK) {
+			if (partition.get(randBlockExcessVerts).size() == graph.vertexSet().size() / commonK) {
 				blocksExcessVertices.remove(indRandBlockExcessVerts);
 				if (blocksExcessVertices.size() == 0)   // By construction, when blocksExcessVertices becomes empty so does blocksMissingVertices 
 					balancingNeeded = false;
@@ -182,15 +182,17 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			int indRandBlockMissingVerts = random.nextInt(blocksMissingVertices.size());
 			String randBlockMissingVerts = blocksMissingVertices.get(indRandBlockMissingVerts);
 			partition.get(randBlockMissingVerts).add(vertToSwitch);
-			if (partition.get(randBlockMissingVerts).size() == workingGraph.vertexSet().size() / commonK) {
+			if (partition.get(randBlockMissingVerts).size() == graph.vertexSet().size() / commonK) {
 				blocksMissingVertices.remove(indRandBlockMissingVerts);
 			}
 		}
 		
-		// First approach, rebuild blocks-as-subgraphs structure used in KMatchAnonymizerUsingMETIS and keep the rest of the implementation as it was 
+		// Rebuilding blocks-as-subgraphs structure used in KMatchAnonymizerUsingMETIS 
+		// and keeping the rest of the implementation as it was
+		
 		List<UndirectedGraph<String, DefaultEdge>> group = new ArrayList<>();
 		for (String pid : partition.keySet())
-			group.add(GraphUtil.inducedSubgraph(workingGraph, partition.get(pid)));
+			group.add(GraphUtil.inducedSubgraph(graph, partition.get(pid)));
 		
 		// Add necessary entries in VAT
 		
@@ -349,4 +351,89 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		
 		return auxVAT;
 	}
+	
+	/***
+	 * Methods for incrementally anonymizing a non-first snapshot (not the first ever and not the first after a call of restart())
+	 */
+	
+	protected void anonymizeNewSnapshot(UndirectedGraph<String, DefaultEdge> graph, boolean randomize, String uniqueIdFileName) {
+		
+		if (firstSnapshotAnonymized) {
+			
+			SecureRandom random = new SecureRandom();
+			
+			// Remove from pendingVertexAdditions vertices that no longer exist in this snapshot
+			// These vertices will never be represented in the private sequence
+			pendingVertexAdditions.retainAll(graph.vertexSet());
+			
+			// Remove VAT rows such that all of their elements no longer exist
+			// Determine set of untabulated vertices
+			
+			Set<String> untabulatedVertices = new TreeSet<>(graph.vertexSet());
+			Set<String> vatRowsToRemove = new TreeSet<>();
+			
+			for (String vatKey : globalVAT.keySet()) {
+				
+				boolean removeRow = true;
+				for (String v : globalVAT.get(vatKey))
+					if (graph.containsVertex(v)) {
+						removeRow = false;
+						break;
+					}
+				
+				if (removeRow)
+					vatRowsToRemove.add(vatKey);
+				else {
+					
+					untabulatedVertices.removeAll(globalVAT.get(vatKey));
+					
+					// Tabulated vertices that no longer exist in graph will be re-inserted as degree-0 vertices
+					for (String v : globalVAT.get(vatKey)) 
+						if (!graph.containsVertex(v))
+							graph.addVertex(v);
+				}
+			}
+			
+			for (String key : vatRowsToRemove)
+				globalVAT.remove(key);
+			
+			// If the number of untabulated vertices is not a multiple of commonK, 
+			// leave untabulatedVertices.size() % commonK random vertices pending
+			int pendingVertCount = untabulatedVertices.size() % commonK;
+			if (pendingVertCount > 0) {
+				List<String> vertList = new ArrayList<>(untabulatedVertices);
+				for (int i = 0; i < pendingVertCount; i++) {
+					int pvId = random.nextInt(vertList.size());
+					pendingVertexAdditions.add(vertList.get(pvId));
+					graph.removeVertex(vertList.get(pvId));
+					untabulatedVertices.remove(vertList.get(pvId));
+					vertList.remove(pvId);
+				}
+			}
+			
+			// Perform anonymization
+			updateVATRoundRobin(graph, untabulatedVertices);
+			alignBlocks(graph, globalVAT);
+			if (randomize)
+				randomlyUniformizeCrossingEdges(graph);
+			else
+				copyCrossingEdges(graph);
+			 
+		}
+		else   // Just in case
+			anonymizeFirstSnapshot(graph, randomize, uniqueIdFileName);
+	}
+	
+	protected void updateVATRoundRobin(UndirectedGraph<String, DefaultEdge> graph, Set<String> untabulatedVertices) {
+		// Create new VAT entries by decrementally-degree-sorted round-robin
+		List<String> degreeSortedUntabVerts = GraphUtil.degreeSortedVertexList(graph, untabulatedVertices, false);
+		for (int i = 0; i < degreeSortedUntabVerts.size() / commonK; i++) {
+			String newRowKey = degreeSortedUntabVerts.get(i * commonK);
+			List<String> newRowEntries = new ArrayList<>();
+			for (int j = 0; j < commonK; j++)
+				newRowEntries.add(degreeSortedUntabVerts.get(i * commonK + j));
+			globalVAT.put(newRowKey, newRowEntries);
+		}
+	}
+	
 }

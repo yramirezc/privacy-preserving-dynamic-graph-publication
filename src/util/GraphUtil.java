@@ -851,9 +851,12 @@ public class GraphUtil {
 		return graph.vertexSet();
 	}
 	
-	public static List<String> degreeSortedVertexList(UndirectedGraph<String, DefaultEdge> graph, boolean incremental) {
+	public static List<String> degreeSortedVertexList(UndirectedGraph<String, DefaultEdge> graph, Set<String> verticesToRetain, boolean incremental) {
 		
 		Set<String> tempVertSet = new TreeSet<>(graph.vertexSet());
+		if (verticesToRetain != null)
+			tempVertSet.retainAll(verticesToRetain);
+		// else retain all vertices
 		List<String> sortedVertList = new ArrayList<>();
 		
 		if (incremental) {
