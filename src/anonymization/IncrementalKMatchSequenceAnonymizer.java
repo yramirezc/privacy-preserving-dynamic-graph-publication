@@ -11,7 +11,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
-
 import util.GraphUtil;
 import util.WrapperMETIS;
 
@@ -433,6 +432,79 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			for (int j = 0; j < commonK; j++)
 				newRowEntries.add(degreeSortedUntabVerts.get(i * commonK + j));
 			globalVAT.put(newRowKey, newRowEntries);
+		}
+	}
+	
+	protected void updateVATRandLocalSearch(UndirectedGraph<String, DefaultEdge> graph, Set<String> untabulatedVertices, int maxItersTotal, int maxItersNoImprov) {
+		
+		// Initialize new VAT entries by decrementally-degree-sorted round-robin
+		Map<String, List<String>> newVATRows = new TreeMap<>();
+		List<String> degreeSortedUntabVerts = GraphUtil.degreeSortedVertexList(graph, untabulatedVertices, false);
+		for (int i = 0; i < degreeSortedUntabVerts.size() / commonK; i++) {
+			String newRowKey = degreeSortedUntabVerts.get(i * commonK);
+			List<String> newRowEntries = new ArrayList<>();
+			for (int j = 0; j < commonK; j++)
+				newRowEntries.add(degreeSortedUntabVerts.get(i * commonK + j));
+			newVATRows.put(newRowKey, newRowEntries);
+		}
+		
+		// Modify new VAT entries to minimize number of crossing edges
+		int nonImprovIterCount = 0;
+		List<String> newVATKeys = new ArrayList<>(newVATRows.keySet());
+		int currentCost = groupCost(graph, newVATRows, true);
+		SecureRandom random = new SecureRandom();
+		
+		for (int i = 0; i < maxItersTotal; i++) {
+			
+			Map<String, List<String>> modifNewVATRows = new TreeMap<>(newVATRows);
+			
+			// Randomly select elements to swap
+			String swapKey1 = newVATKeys.get(random.nextInt(newVATKeys.size()));
+			int swapOrd1 = random.nextInt(newVATRows.get(swapKey1).size());
+			String swapKey2 = newVATKeys.get(random.nextInt(newVATKeys.size()));
+			int swapOrd2 = random.nextInt(newVATRows.get(swapKey2).size());
+			while (swapKey1.equals(swapKey2) && swapOrd1 == swapOrd2) {
+				swapKey1 = newVATKeys.get(random.nextInt(newVATKeys.size()));
+				swapOrd1 = random.nextInt(newVATRows.get(swapKey1).size());
+				swapKey2 = newVATKeys.get(random.nextInt(newVATKeys.size()));
+				swapOrd2 = random.nextInt(newVATRows.get(swapKey2).size());
+			}
+			
+			// Perform the swap 
+			String tmp = modifNewVATRows.get(swapKey1).get(swapOrd1);
+			modifNewVATRows.get(swapKey1).set(swapOrd1, modifNewVATRows.get(swapKey2).get(swapOrd2));
+			modifNewVATRows.get(swapKey2).set(swapOrd2, tmp);
+			
+			// If some VAT row keys must change
+			if (swapOrd1 == 0 && swapOrd2 != 0) {   
+				modifNewVATRows.put(modifNewVATRows.get(swapKey1).get(0), modifNewVATRows.get(swapKey1));
+				modifNewVATRows.remove(swapKey1);
+			}
+			else if (swapOrd1 != 0 && swapOrd2 == 0) {
+				modifNewVATRows.put(modifNewVATRows.get(swapKey2).get(0), modifNewVATRows.get(swapKey2));
+				modifNewVATRows.remove(swapKey2);
+			}
+			else {
+				List<String> row1 = modifNewVATRows.get(swapKey1);
+				List<String> row2 = modifNewVATRows.get(swapKey2);
+				modifNewVATRows.remove(swapKey1);
+				modifNewVATRows.remove(swapKey2);
+				modifNewVATRows.put(row1.get(0), row1);
+				modifNewVATRows.put(row2.get(0), row2);
+			}
+			
+			// Evaluate swap and keep if better
+			int newCost = groupCost(graph, modifNewVATRows, true);
+			if (newCost < currentCost) {
+				currentCost = newCost;
+				nonImprovIterCount = 0;
+				newVATRows = modifNewVATRows;
+			}
+			else {
+				nonImprovIterCount++;
+				if (nonImprovIterCount >= maxItersNoImprov)
+					break;
+			}
 		}
 	}
 	
