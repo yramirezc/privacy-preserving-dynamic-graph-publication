@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
+import org.jgrapht.Graphs;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 import util.GraphUtil;
@@ -450,24 +452,143 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		
 		// Modify new VAT entries to minimize number of crossing edges
 		int nonImprovIterCount = 0;
-		List<String> newVATKeys = new ArrayList<>(newVATRows.keySet());
 		int currentCost = groupCost(graph, newVATRows, true);
-		SecureRandom random = new SecureRandom();
 		
 		for (int i = 0; i < maxItersTotal; i++) {
 			
-			Map<String, List<String>> modifNewVATRows = new TreeMap<>(newVATRows);
+			// Randomly swap a pair of elements in the new VAT rows
+			Map<String, List<String>> modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, true); 
+			
+			// Evaluate swap and keep if better
+			int newCost = groupCost(graph, modifNewVATRows, true);
+			if (newCost < currentCost) {
+				currentCost = newCost;
+				nonImprovIterCount = 0;
+				newVATRows = modifNewVATRows;
+			}
+			else if (++nonImprovIterCount >= maxItersNoImprov)
+				break;
+		}
+	}
+	
+	/***
+	 * 
+	 * @param graph
+	 * @param untabulatedVertices
+	 * @param maxItersTotal
+	 * @param maxItersSameEnergy: maximum number iterations at the same energy level, after which the search can stop
+	 * @param maxWorstSolRejections: maximum number of rejected worse solutions, after which the search can stop
+	 * @param maxAcceptableWorstSolXTempLevel: maximum number of accepted worse solutions for each temperature, after which temperature must be reduced  
+	 * @param startTemp
+	 * @param minTemp: minimum temperature, below which the search can stop
+	 * @param startTempDescentRate: initial temperature descent rate
+	 * @param itersXDescentRate: the number of iterations after which the temperature descent rate is reduced so temperature descends faster as the process advances
+	 */
+	
+	protected void updateVATSimulatedAnnealing(UndirectedGraph<String, DefaultEdge> graph, Set<String> untabulatedVertices, 
+			int maxItersTotal, int maxItersSameEnergy, int maxWorstSolRejections, int maxAcceptableWorstSolXTempLevel,  
+			double startTemp, double minTemp, double startTempDescentRate, int itersXDescentRate) {
+		
+		// Initialize new VAT entries by decrementally-degree-sorted round-robin
+		Map<String, List<String>> newVATRows = new TreeMap<>();
+		List<String> degreeSortedUntabVerts = GraphUtil.degreeSortedVertexList(graph, untabulatedVertices, false);
+		for (int i = 0; i < degreeSortedUntabVerts.size() / commonK; i++) {
+			String newRowKey = degreeSortedUntabVerts.get(i * commonK);
+			List<String> newRowEntries = new ArrayList<>();
+			for (int j = 0; j < commonK; j++)
+				newRowEntries.add(degreeSortedUntabVerts.get(i * commonK + j));
+			newVATRows.put(newRowKey, newRowEntries);
+		}
+		
+		// Modify new VAT entries to minimize number of crossing edges
+		
+		double temperature = startTemp;
+		double tempDescentRate = startTempDescentRate; 
+		int iterCount = 0;
+		int itersSameEenergyCount = 0;
+		int acceptedWorstSolutions = 0;
+		int rejectedWorstSolutions = 0;
+		
+		double denominatorEnergyForm = (double)upperBoundCost(graph, newVATRows);
+		double energyCurrentSolution = (double)groupCost(graph, newVATRows, true) / denominatorEnergyForm;
+		
+		SecureRandom random = new SecureRandom();
+				
+		do {
+			
+			// Get a new candidate solution 
+			// Perform a local change with prob. 0.95, or an exploratory change with prob. 0.05
+			
+			Map<String, List<String>> modifNewVATRows = null;
+			if (random.nextDouble() < 0.95d)
+				modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, true);
+			else
+				modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, false);
+			
+			// Evaluate new candidate solution and keep it:
+			// a) with prob. 1 if it is better
+			// b) with prob. 0.005 if it is equally costly 
+			// c) with prob. exp(-delta E / T) if it is worse
+			
+			double energyNewSolution = (double)groupCost(graph, modifNewVATRows, true) / denominatorEnergyForm;
+			
+			if (energyNewSolution < energyCurrentSolution) {	
+				newVATRows = modifNewVATRows;
+				energyCurrentSolution = energyNewSolution;
+				itersSameEenergyCount = 0;
+			}
+			else if (energyNewSolution == energyCurrentSolution) {   // This is in fact quite unlikely to happen for energy defined in terms of anonymization cost
+				if (random.nextDouble() < 0.005d)   // Take equal energy solution with prob. 0.005
+					newVATRows = modifNewVATRows;
+				itersSameEenergyCount++;
+			} 
+			else {  // energyNewSolution > energyCurrentSolution				
+				// Accept worse solution with prob. exp(-delta E / T)
+				if (random.nextDouble() < Math.exp((double)(energyCurrentSolution - energyNewSolution) / temperature)) {
+					newVATRows = modifNewVATRows;
+					acceptedWorstSolutions++;
+				}
+				else 
+					rejectedWorstSolutions++;
+				itersSameEenergyCount = 0;
+			}
+			
+			// Update annealing parameters
+			
+			if (acceptedWorstSolutions >= maxAcceptableWorstSolXTempLevel) {
+				temperature *= tempDescentRate;
+				acceptedWorstSolutions = 0;
+				rejectedWorstSolutions = 0;
+			}
+			
+			if (iterCount % itersXDescentRate == itersXDescentRate - 1)
+				tempDescentRate -= tempDescentRate * 10.0d;
+			
+		}
+		while (iterCount < maxItersTotal && temperature >= minTemp && itersSameEenergyCount < maxItersSameEnergy && (rejectedWorstSolutions < maxWorstSolRejections || acceptedWorstSolutions > 0));
+		// The process stops when temperature is sufficiently low, a sufficient number of iterations are performed without changing
+		// system energy, or up to maxWorstSolRejections worse solutions are rejected without accepting none for some temperature
+	}
+	
+	protected Map<String, List<String>> randomlyModifiedVATRowSet(Map<String, List<String>> currentVATRowSet, boolean localChange) {
+		
+		Map<String, List<String>> modifNewVATRows = new TreeMap<>(currentVATRowSet);
+		SecureRandom random = new SecureRandom();
+		
+		if (localChange) {
+			
+			List<String> newVATKeys = new ArrayList<>(currentVATRowSet.keySet());
 			
 			// Randomly select elements to swap
 			String swapKey1 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-			int swapOrd1 = random.nextInt(newVATRows.get(swapKey1).size());
+			int swapOrd1 = random.nextInt(currentVATRowSet.get(swapKey1).size());
 			String swapKey2 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-			int swapOrd2 = random.nextInt(newVATRows.get(swapKey2).size());
+			int swapOrd2 = random.nextInt(currentVATRowSet.get(swapKey2).size());
 			while (swapKey1.equals(swapKey2) && swapOrd1 == swapOrd2) {
 				swapKey1 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-				swapOrd1 = random.nextInt(newVATRows.get(swapKey1).size());
+				swapOrd1 = random.nextInt(currentVATRowSet.get(swapKey1).size());
 				swapKey2 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-				swapOrd2 = random.nextInt(newVATRows.get(swapKey2).size());
+				swapOrd2 = random.nextInt(currentVATRowSet.get(swapKey2).size());
 			}
 			
 			// Perform the swap 
@@ -475,7 +596,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			modifNewVATRows.get(swapKey1).set(swapOrd1, modifNewVATRows.get(swapKey2).get(swapOrd2));
 			modifNewVATRows.get(swapKey2).set(swapOrd2, tmp);
 			
-			// If some VAT row keys must change
+			// Update row keys if needed
 			if (swapOrd1 == 0 && swapOrd2 != 0) {   
 				modifNewVATRows.put(modifNewVATRows.get(swapKey1).get(0), modifNewVATRows.get(swapKey1));
 				modifNewVATRows.remove(swapKey1);
@@ -492,20 +613,35 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				modifNewVATRows.put(row1.get(0), row1);
 				modifNewVATRows.put(row2.get(0), row2);
 			}
-			
-			// Evaluate swap and keep if better
-			int newCost = groupCost(graph, modifNewVATRows, true);
-			if (newCost < currentCost) {
-				currentCost = newCost;
-				nonImprovIterCount = 0;
-				newVATRows = modifNewVATRows;
-			}
-			else {
-				nonImprovIterCount++;
-				if (nonImprovIterCount >= maxItersNoImprov)
-					break;
-			}
 		}
+		else {   // Exploratory (non-local) modifications
+			
+			// Perform a number of local modifications ranging from minChangeCount to 3 * minChangeCount,   
+			// where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
+			int minChangeCount = (currentVATRowSet.size() * commonK) / 5;
+			int changeCount = minChangeCount + random.nextInt(2 * minChangeCount + 1);
+			for (int i = 0; i < changeCount; i++) 
+				modifNewVATRows = randomlyModifiedVATRowSet(modifNewVATRows, true);
+		}
+		
+		return modifNewVATRows;
+	}
+	
+	// This is a loose, efficiently computable upper bound to be used as the normalizing factor 
+	// for converting anonymization cost into energy in the simulated annealing VAT update method  
+	protected int upperBoundCost(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> vatRowSet) {
+		
+		Set<String> vertsInVATRows = new TreeSet<>();
+		for (String key : vatRowSet.keySet())
+			for (String v : vatRowSet.get(key))
+				vertsInVATRows.add(v);
+		
+		int upperBound = 0;
+		for (String v : vertsInVATRows) 
+			upperBound += (commonK - 1 ) * graph.degreeOf(v);
+		upperBound /= 2;
+		
+		return upperBound;
 	}
 	
 }
