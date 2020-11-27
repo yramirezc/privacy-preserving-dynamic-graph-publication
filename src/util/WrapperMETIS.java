@@ -41,7 +41,7 @@ public class WrapperMETIS {
 		runMETIS(graph, k, uniqueIdFileName, weightedVertices, vertIdOffset);
 		
 		// Load output
-		Map<String, Set<String>> vertsXPart = loadOutputFromFile(pathName + java.io.File.pathSeparator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		Map<String, Set<String>> vertsXPart = loadOutputFromFile(pathName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
 		
 		// Build partition subgraphs
 		List<UndirectedGraph<String, DefaultEdge>> partitions = new ArrayList<>();
@@ -59,7 +59,7 @@ public class WrapperMETIS {
 		runMETIS(graph, k, uniqueIdFileName, weightedVertices, vertIdOffset);
 				
 		// Load output
-		Map<String, Set<String>> vertsXPart = loadOutputFromFile(pathName + java.io.File.pathSeparator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		Map<String, Set<String>> vertsXPart = loadOutputFromFile(pathName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
 		
 		return vertsXPart;
 	}
@@ -67,15 +67,15 @@ public class WrapperMETIS {
 	protected void runMETIS(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName, boolean weightedVertices, int vertIdOffset) throws IOException, InterruptedException {
 		
 		// Generate input
-		generateInputFile(graph, pathName + java.io.File.pathSeparator + "workingGraph-" + uniqueIdFileName + ".txt", weightedVertices, vertIdOffset);
+		generateInputFile(graph, pathName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt", weightedVertices, vertIdOffset);
 		
 		// Run METIS
 		Runtime rt = Runtime.getRuntime();
-		String command = null;
-		command = executableName + " " + pathName + java.io.File.pathSeparator + "workingGraph-" + uniqueIdFileName + ".txt " + k;
+		String command = executableName + " " + pathName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt " + k;
 		Process proc = rt.exec(command);
 		proc.waitFor();
-		if (proc.exitValue() != 0)   // Unsuccessful execution 	
+		int exitVal = proc.exitValue();
+		if (exitVal != 0)   // Unsuccessful execution 	
 			throw new RuntimeException();
 		
 	}

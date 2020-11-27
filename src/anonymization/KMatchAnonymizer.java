@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import org.jgrapht.Graphs;
@@ -17,7 +18,11 @@ public abstract class KMatchAnonymizer {
 
 	public abstract void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize);
 	
+	public abstract void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, boolean randomize);
+	
 	public abstract void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize, String uniqueIdFileName);
+	
+	public abstract void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, boolean randomize, String uniqueIdFileName);
 	
 	protected void alignBlocks(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> groupVAT) {
 		
@@ -139,6 +144,20 @@ public abstract class KMatchAnonymizer {
 		}
 		
 		return edgeAdditions + costCrossingEdges;
+	}
+	
+	protected Map<String, List<String>> cloneVATRowSet(Map<String, List<String>> origVATRowSet) {
+		
+		Map<String, List<String>> newVATRowSet = new TreeMap<>();
+		
+		for (String rid : origVATRowSet.keySet()) {
+			List<String> newRow = new ArrayList<>();
+			for (int i = 0; i < origVATRowSet.get(rid).size(); i++)
+				newRow.add(origVATRowSet.get(rid).get(i));
+			newVATRowSet.put(rid, newRow);
+		}
+		
+		return newVATRowSet;
 	}
 
 }

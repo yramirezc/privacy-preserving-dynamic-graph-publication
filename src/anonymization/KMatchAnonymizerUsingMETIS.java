@@ -59,8 +59,18 @@ public class KMatchAnonymizerUsingMETIS extends KMatchAnonymizer {
 	}
 	
 	@Override
+	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, boolean randomize, String uniqueIdFileName) {
+		anonymizeGraph(graph, 2, randomize, uniqueIdFileName);
+	}
+	
+	@Override
 	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize) {
 		anonymizeGraph(graph, k, randomize, "DefaultNameServiceFileKMatchAnonymizerUsingMETIS");
+	}
+	
+	@Override
+	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, boolean randomize) {
+		anonymizeGraph(graph, 2, randomize, "DefaultNameServiceFileKMatchAnonymizerUsingMETIS");
 	}
 
 	protected void performAnonymization(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize, String uniqueIdFileName) {
@@ -290,6 +300,12 @@ public class KMatchAnonymizerUsingMETIS extends KMatchAnonymizer {
 		
 		return auxVAT;
 	}
+	
+	/***
+	 * 
+	 * The purpose of this main method is to serve as support for debugging and testing
+	 * 
+	 */
 	
 	public static void main(String [] args) {
 		

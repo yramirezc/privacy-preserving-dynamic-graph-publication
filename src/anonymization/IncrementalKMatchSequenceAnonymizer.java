@@ -9,10 +9,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-
-import org.jgrapht.Graphs;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+
+import util.BarabasiAlbertGraphGenerator;
 import util.GraphUtil;
 import util.WrapperMETIS;
 
@@ -27,52 +28,53 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	protected int commonK = 2;
 	
 	protected boolean firstSnapshotAnonymized = false;
-	protected Set<String> pendingVertexAdditions;
+	
+	protected int localSearchImprovementCount = 0;
 	
 	/***
 	 * Public interface
 	 */
 	
-	public IncrementalKMatchSequenceAnonymizer() {
-		globalVAT = null;
-		commonK = 2;
-		firstSnapshotAnonymized = false;
-		pendingVertexAdditions = new TreeSet<>();
-	}
-	
 	public IncrementalKMatchSequenceAnonymizer(int k) {
 		globalVAT = null;
 		commonK = k;
 		firstSnapshotAnonymized = false;
-		pendingVertexAdditions = new TreeSet<>();
-	}
-	
-	public void restart() {
-		globalVAT = null;
-		firstSnapshotAnonymized = false;
-		pendingVertexAdditions = new TreeSet<>();
 	}
 	
 	public void restart(int k) {
 		commonK = k;
-		restart();
+		globalVAT = null;
+		firstSnapshotAnonymized = false;
 	}
 
 	@Override
+	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, boolean randomize, String uniqueIdFileName) {
+		if (firstSnapshotAnonymized)
+			anonymizeNewSnapshot(graph, randomize, uniqueIdFileName);
+		else
+			anonymizeFirstSnapshot(graph, randomize, uniqueIdFileName);
+	}
+	
+	@Override
 	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize, String uniqueIdFileName) {
-		if (k == commonK) {
-			if (firstSnapshotAnonymized)
-				anonymizeNewSnapshot(graph, randomize, uniqueIdFileName);
-			else
-				anonymizeFirstSnapshot(graph, randomize, uniqueIdFileName);
-		}
+		if (k == commonK) 
+			anonymizeGraph(graph, k, randomize, uniqueIdFileName);
 		else 
-			throw new RuntimeException("Calling anonymization for k = " + k + ", " + commonK + " expected");
+			throw new RuntimeException("Calling anonymization for k = " + k + ", anonymizer created for k = " + commonK);
 	}
 	
 	@Override
 	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, int k, boolean randomize) {
 		anonymizeGraph(graph, k, randomize, "DefaultNameServiceFileIncrementalKMatchAnonymizerUsingMETIS");
+	}
+	
+	@Override
+	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, boolean randomize) {
+		anonymizeGraph(graph, randomize, "DefaultNameServiceFileIncrementalKMatchAnonymizerUsingMETIS");
+	}
+	
+	public int getLocalSearchImprovementCount() {
+		return localSearchImprovementCount;
 	}
 	
 	/***
@@ -92,7 +94,6 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				List<String> vertList = new ArrayList<>(graph.vertexSet());
 				for (int i = 0; i < pendingVertCount; i++) {
 					int pvId = random.nextInt(vertList.size());
-					pendingVertexAdditions.add(vertList.get(pvId));
 					graph.removeVertex(vertList.get(pvId));
 					vertList.remove(pvId);
 				}
@@ -104,8 +105,8 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		}
 		else {
 			// Return a null graph, leave all current vertices pending 
-			pendingVertexAdditions = new TreeSet<>(graph.vertexSet());
-			graph.removeAllVertices(pendingVertexAdditions);
+			Set<String> tmpVertSet = new TreeSet<>(graph.vertexSet());
+			graph.removeAllVertices(tmpVertSet);
 		}
 		
 		firstSnapshotAnonymized = true;
@@ -129,7 +130,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			// and assigning each vertex to a partition using round-robin 			
 			partition = new TreeMap<>();
 			for (int i = 0; i < commonK; i++)
-				partition.put((i + 1) + "", new TreeSet<String>());
+				partition.put(i + "", new TreeSet<String>());
 			List<String> sortedVertList = GraphUtil.degreeSortedVertexList(graph, null, false);
 			for (int i = 0; i < sortedVertList.size(); i++)
 				partition.get((i % commonK) + "").add(sortedVertList.get(i));
@@ -150,19 +151,19 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		Set<String> vertsInVAT = new TreeSet<>();
 		SecureRandom random = new SecureRandom();   // Will be used to randomize all equally optimal decisions
 		
-		// All elements of the partition must have the same number of vertices
+		// All elements of the partition must have the same number of vertices, but METIS does not guarantee that 
 		// Some reallocations may be needed
 		
 		boolean balancingNeeded = false;
 		List<String> blocksMissingVertices = new ArrayList<>();
 		List<String> blocksExcessVertices = new ArrayList<>();
-		for (String partId : partition.keySet()) {
-			if (partition.get(partId).size() < graph.vertexSet().size() / commonK) {
-				blocksMissingVertices.add(partId);
+		for (String pid : partition.keySet()) {
+			if (partition.get(pid).size() < graph.vertexSet().size() / commonK) {
+				blocksMissingVertices.add(pid);
 				balancingNeeded = true;
 			}
-			else if (partition.get(partId).size() > graph.vertexSet().size() / commonK) {
-				blocksExcessVertices.add(partId);
+			else if (partition.get(pid).size() > graph.vertexSet().size() / commonK) {
+				blocksExcessVertices.add(pid);
 				balancingNeeded = true;
 			}
 		}
@@ -363,9 +364,8 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			
 			SecureRandom random = new SecureRandom();
 			
-			// Remove from pendingVertexAdditions vertices that no longer exist in this snapshot
-			// These vertices will never be represented in the private sequence
-			pendingVertexAdditions.retainAll(graph.vertexSet());
+			// Note: vertices not included in previous snapshots that no longer exist in this snapshot
+			// will never be represented in the private sequence
 			
 			// Remove VAT rows such that all of their elements no longer exist
 			// Determine set of untabulated vertices
@@ -405,7 +405,6 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				List<String> vertList = new ArrayList<>(untabulatedVertices);
 				for (int i = 0; i < pendingVertCount; i++) {
 					int pvId = random.nextInt(vertList.size());
-					pendingVertexAdditions.add(vertList.get(pvId));
 					graph.removeVertex(vertList.get(pvId));
 					untabulatedVertices.remove(vertList.get(pvId));
 					vertList.remove(pvId);
@@ -413,7 +412,8 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			}
 			
 			// Perform anonymization
-			updateVATRoundRobin(graph, untabulatedVertices);
+			//updateVATRoundRobin(graph, untabulatedVertices);
+			updateVATRandLocalSearch(graph, untabulatedVertices, 10000, 5000);
 			alignBlocks(graph, globalVAT);
 			if (randomize)
 				randomlyUniformizeCrossingEdges(graph);
@@ -457,7 +457,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		for (int i = 0; i < maxItersTotal; i++) {
 			
 			// Randomly swap a pair of elements in the new VAT rows
-			Map<String, List<String>> modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, true); 
+			Map<String, List<String>> modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, 1); 
 			
 			// Evaluate swap and keep if better
 			int newCost = groupCost(graph, modifNewVATRows, true);
@@ -465,6 +465,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				currentCost = newCost;
 				nonImprovIterCount = 0;
 				newVATRows = modifNewVATRows;
+				localSearchImprovementCount++;
 			}
 			else if (++nonImprovIterCount >= maxItersNoImprov)
 				break;
@@ -521,9 +522,9 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			
 			Map<String, List<String>> modifNewVATRows = null;
 			if (random.nextDouble() < 0.95d)
-				modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, true);
+				modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, 1);
 			else
-				modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, false);
+				modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, 3);
 			
 			// Evaluate new candidate solution and keep it:
 			// a) with prob. 1 if it is better
@@ -570,42 +571,58 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		// system energy, or up to maxWorstSolRejections worse solutions are rejected without accepting none for some temperature
 	}
 	
-	protected Map<String, List<String>> randomlyModifiedVATRowSet(Map<String, List<String>> currentVATRowSet, boolean localChange) {
+	/***
+	 * 
+	 * @param currentVATRowSet
+	 * @param changeType: 0 --> swap two elements in the same row
+	 *                    1 --> swap any two elements 
+	 *                    2 --> perform a number of type 0 modifications ranging from minChangeCount to 3 * minChangeCount,
+	 *                          where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
+	 *                    else: perform a number of type 1 modifications ranging from minChangeCount to 3 * minChangeCount,
+	 *                          where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
+	 */
+	
+	protected Map<String, List<String>> randomlyModifiedVATRowSet(Map<String, List<String>> currentVATRowSet, int changeType) {
 		
-		Map<String, List<String>> modifNewVATRows = new TreeMap<>(currentVATRowSet);
+		Map<String, List<String>> modifNewVATRows = cloneVATRowSet(currentVATRowSet);
 		SecureRandom random = new SecureRandom();
 		
-		if (localChange) {
-			
-			List<String> newVATKeys = new ArrayList<>(currentVATRowSet.keySet());
+		if (changeType == 0 || changeType == 1) {
 			
 			// Randomly select elements to swap
+			List<String> newVATKeys = new ArrayList<>(modifNewVATRows.keySet());
 			String swapKey1 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-			int swapOrd1 = random.nextInt(currentVATRowSet.get(swapKey1).size());
-			String swapKey2 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-			int swapOrd2 = random.nextInt(currentVATRowSet.get(swapKey2).size());
-			while (swapKey1.equals(swapKey2) && swapOrd1 == swapOrd2) {
-				swapKey1 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-				swapOrd1 = random.nextInt(currentVATRowSet.get(swapKey1).size());
-				swapKey2 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-				swapOrd2 = random.nextInt(currentVATRowSet.get(swapKey2).size());
+			int swapOrd1 = random.nextInt(modifNewVATRows.get(swapKey1).size());
+			String swapKey2 = swapKey1;   // Initialization required, using swapKey1  
+			int swapOrd2;
+			if (changeType == 0) {   // A type 0 change will swap two elements on the same row
+				swapOrd2 = random.nextInt(modifNewVATRows.get(swapKey2).size());
+				while (swapOrd2 == swapOrd1)
+					swapOrd2 = random.nextInt(modifNewVATRows.get(swapKey2).size());
+			}
+			else {  // changeType == 1, swap two elements on different rows 
+				while (swapKey2.equals(swapKey1))
+					swapKey2 = newVATKeys.get(random.nextInt(newVATKeys.size()));
+				swapOrd2 = random.nextInt(modifNewVATRows.get(swapKey2).size());
 			}
 			
-			// Perform the swap 
+			// Perform the swap
 			String tmp = modifNewVATRows.get(swapKey1).get(swapOrd1);
 			modifNewVATRows.get(swapKey1).set(swapOrd1, modifNewVATRows.get(swapKey2).get(swapOrd2));
 			modifNewVATRows.get(swapKey2).set(swapOrd2, tmp);
 			
 			// Update row keys if needed
-			if (swapOrd1 == 0 && swapOrd2 != 0) {   
-				modifNewVATRows.put(modifNewVATRows.get(swapKey1).get(0), modifNewVATRows.get(swapKey1));
+			if (swapOrd1 == 0 && swapOrd2 != 0) {
+				List<String> row1 = modifNewVATRows.get(swapKey1);
 				modifNewVATRows.remove(swapKey1);
+				modifNewVATRows.put(row1.get(0), row1);
 			}
 			else if (swapOrd1 != 0 && swapOrd2 == 0) {
-				modifNewVATRows.put(modifNewVATRows.get(swapKey2).get(0), modifNewVATRows.get(swapKey2));
+				List<String> row2 = modifNewVATRows.get(swapKey2);
 				modifNewVATRows.remove(swapKey2);
+				modifNewVATRows.put(row2.get(0), row2);
 			}
-			else {
+			else if (swapOrd1 == 0 && swapOrd2 == 0) {
 				List<String> row1 = modifNewVATRows.get(swapKey1);
 				List<String> row2 = modifNewVATRows.get(swapKey2);
 				modifNewVATRows.remove(swapKey1);
@@ -613,22 +630,34 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				modifNewVATRows.put(row1.get(0), row1);
 				modifNewVATRows.put(row2.get(0), row2);
 			}
-		}
-		else {   // Exploratory (non-local) modifications
 			
-			// Perform a number of local modifications ranging from minChangeCount to 3 * minChangeCount,   
+		}
+		else if (changeType == 2) {
+			
+			// Perform a number of type 0 modifications ranging from minChangeCount to 3 * minChangeCount,   
 			// where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
 			int minChangeCount = (currentVATRowSet.size() * commonK) / 5;
 			int changeCount = minChangeCount + random.nextInt(2 * minChangeCount + 1);
 			for (int i = 0; i < changeCount; i++) 
-				modifNewVATRows = randomlyModifiedVATRowSet(modifNewVATRows, true);
+				modifNewVATRows = randomlyModifiedVATRowSet(modifNewVATRows, 0);
 		}
-		
+		else {
+			
+			// Perform a number of type 1 modifications ranging from minChangeCount to 3 * minChangeCount,   
+			// where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
+			int minChangeCount = (currentVATRowSet.size() * commonK) / 5;
+			int changeCount = minChangeCount + random.nextInt(2 * minChangeCount + 1);
+			for (int i = 0; i < changeCount; i++) 
+				modifNewVATRows = randomlyModifiedVATRowSet(modifNewVATRows, 1);
+		}
+				
 		return modifNewVATRows;
 	}
 	
 	// This is a loose, efficiently computable upper bound to be used as the normalizing factor 
-	// for converting anonymization cost into energy in the simulated annealing VAT update method  
+	// for converting anonymization cost into energy in the simulated annealing VAT update method
+	// Counting all neighborhoods as possible edges to copy, rather than just those in different 
+	// columns of the VAT, as done in computing the VAT-specific cost
 	protected int upperBoundCost(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> vatRowSet) {
 		
 		Set<String> vertsInVATRows = new TreeSet<>();
@@ -642,6 +671,127 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		upperBound /= 2;
 		
 		return upperBound;
+	}
+	
+	/***
+	 * 
+	 * The purpose of this main method is to serve as support for debugging and testing
+	 * 
+	 */
+	
+	public static void main(String [] args) {
+		
+		timesExceptionOccurred = 0;
+		int totalNumberImprovementsLocalSearch = 0, numberRunsWithoutImprovement = 0, totalNumberRuns = 0;
+		
+		for (int iter = 0; iter < 1000; iter++) {
+			
+			System.out.println("Iteration # " + iter);
+			
+			int[] ks = {2, 5, 8};
+			
+			// Create anonymizers for k \in ks
+			Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizers = new TreeMap<>();
+			for (int k : ks) 
+				anonymizers.put(k, new IncrementalKMatchSequenceAnonymizer(k));
+			
+			System.out.println("First snapshot");
+			
+			UndirectedGraph<String, DefaultEdge> graph = BarabasiAlbertGraphGenerator.newGraph(200, 0, 50, 5, 3);
+				
+			int origEdgeCount = graph.edgeSet().size(), origVertexCount = graph.vertexSet().size();
+		
+			// Apply the method with k \in ks
+			for (int k : ks) {
+				
+				System.out.println("k = " + k);
+				
+				//System.out.println("\tCopying crossing edges:");
+				
+				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
+				
+				anonymizers.get(k).anonymizeGraph(clone, false, "TesterCopying");
+				
+				// Report effect of anonymization on the graph
+				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
+				System.out.println("\t\tFinal vertex count: " + clone.vertexSet().size());
+				System.out.println("\t\tDelta: " + (clone.vertexSet().size() - origVertexCount) + " (" + ((double)(clone.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
+				System.out.println("\t\tFinal edge count: " + clone.edgeSet().size());
+				System.out.println("\t\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+				
+			}
+			
+			System.out.println("");
+			
+			System.out.println("Second snapshot");
+			
+			graph = BarabasiAlbertGraphGenerator.newGraph(225, 0, (SimpleGraph<String, DefaultEdge>)graph, 5);
+			
+			origEdgeCount = graph.edgeSet().size(); 
+			origVertexCount = graph.vertexSet().size();
+			
+			// Apply the method with k \in ks
+			for (int k : ks) {
+				
+				System.out.println("k = " + k);
+				
+				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
+				
+				anonymizers.get(k).anonymizeGraph(clone, false, "TesterCopying");
+				
+				// Report effect of anonymization on the graph
+				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
+				System.out.println("\t\tFinal vertex count: " + clone.vertexSet().size());
+				System.out.println("\t\tDelta: " + (clone.vertexSet().size() - origVertexCount) + " (" + ((double)(clone.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
+				System.out.println("\t\tFinal edge count: " + clone.edgeSet().size());
+				System.out.println("\t\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+				totalNumberImprovementsLocalSearch += anonymizers.get(k).getLocalSearchImprovementCount();
+				if (anonymizers.get(k).getLocalSearchImprovementCount() == 0)
+					numberRunsWithoutImprovement++;
+				totalNumberRuns++;
+			}
+			
+			System.out.println("");
+						
+			System.out.println("Third snapshot");
+			
+			graph = BarabasiAlbertGraphGenerator.newGraph(250, 0, (SimpleGraph<String, DefaultEdge>)graph, 5);
+			
+			origEdgeCount = graph.edgeSet().size(); 
+			origVertexCount = graph.vertexSet().size();
+			
+			// Apply the method with k \in ks
+			for (int k : ks) {
+				
+				System.out.println("k = " + k);
+				
+				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
+				
+				anonymizers.get(k).anonymizeGraph(clone, false, "TesterCopying");
+				
+				// Report effect of anonymization on the graph
+				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
+				System.out.println("\t\tFinal vertex count: " + clone.vertexSet().size());
+				System.out.println("\t\tDelta: " + (clone.vertexSet().size() - origVertexCount) + " (" + ((double)(clone.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
+				System.out.println("\t\tFinal edge count: " + clone.edgeSet().size());
+				System.out.println("\t\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+				totalNumberImprovementsLocalSearch += anonymizers.get(k).getLocalSearchImprovementCount();
+				totalNumberRuns++;
+			}
+			
+			System.out.println("");
+		}
+		
+		System.out.println(timesExceptionOccurred + " exceptions occurred");
+		System.out.println();
+		System.out.println("Number of improvements in local search: " + totalNumberImprovementsLocalSearch);
+		System.out.println("Average number of improvements in local search: " + (double)totalNumberImprovementsLocalSearch/(double)totalNumberRuns);
+		System.out.println("Number of runs without improvements in local search: " + numberRunsWithoutImprovement);
+		System.out.println("Percentage of runs without improvements in local search: " + (double)(numberRunsWithoutImprovement * 100) / (double)totalNumberRuns);
+		
 	}
 	
 }
