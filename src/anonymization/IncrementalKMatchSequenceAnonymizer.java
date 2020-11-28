@@ -29,7 +29,12 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	
 	protected boolean firstSnapshotAnonymized = false;
 	
-	protected int localSearchImprovementCount = 0;
+	/*** 
+	 * optimizationType == 0: no optimzation
+	 * optimizationType == 1: randomized local search
+	 * else: simulated annealing
+	 */ 
+	protected int optimizationType;
 	
 	/***
 	 * Public interface
@@ -39,6 +44,14 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		globalVAT = null;
 		commonK = k;
 		firstSnapshotAnonymized = false;
+		optimizationType = 0;   // No optimization
+	}
+	
+	public IncrementalKMatchSequenceAnonymizer(int k, int optType) {
+		globalVAT = null;
+		commonK = k;
+		firstSnapshotAnonymized = false;
+		optimizationType = optType;
 	}
 	
 	public void restart(int k) {
@@ -71,10 +84,6 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	@Override
 	public void anonymizeGraph(UndirectedGraph<String, DefaultEdge> graph, boolean randomize) {
 		anonymizeGraph(graph, randomize, "DefaultNameServiceFileIncrementalKMatchAnonymizerUsingMETIS");
-	}
-	
-	public int getLocalSearchImprovementCount() {
-		return localSearchImprovementCount;
 	}
 	
 	/***
@@ -412,8 +421,12 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			}
 			
 			// Perform anonymization
-			//updateVATRoundRobin(graph, untabulatedVertices);
-			updateVATRandLocalSearch(graph, untabulatedVertices, 10000, 5000);
+			if (optimizationType == 0)
+				updateVATRoundRobin(graph, untabulatedVertices);
+			else if (optimizationType == 1)
+				updateVATRandLocalSearch(graph, untabulatedVertices, 1000, 500);
+			else
+				updateVATSimulatedAnnealing(graph, untabulatedVertices, 10000, 5000, 2500, 50, 0.005d, 0.000001d, 0.95d, 500);
 			alignBlocks(graph, globalVAT);
 			if (randomize)
 				randomlyUniformizeCrossingEdges(graph);
@@ -452,7 +465,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		
 		// Modify new VAT entries to minimize number of crossing edges
 		int nonImprovIterCount = 0;
-		int currentCost = groupCost(graph, newVATRows, true);
+		int currentCost = extendedVATCost(graph, newVATRows, true);
 		
 		for (int i = 0; i < maxItersTotal; i++) {
 			
@@ -460,16 +473,20 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			Map<String, List<String>> modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, 1); 
 			
 			// Evaluate swap and keep if better
-			int newCost = groupCost(graph, modifNewVATRows, true);
+			int newCost = extendedVATCost(graph, modifNewVATRows, true);
 			if (newCost < currentCost) {
 				currentCost = newCost;
 				nonImprovIterCount = 0;
 				newVATRows = modifNewVATRows;
-				localSearchImprovementCount++;
 			}
 			else if (++nonImprovIterCount >= maxItersNoImprov)
 				break;
 		}
+		
+		// Add new entries to VAT
+		for (String rid : newVATRows.keySet())
+			globalVAT.put(rid, newVATRows.get(rid));
+		
 	}
 	
 	/***
@@ -487,7 +504,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	 */
 	
 	protected void updateVATSimulatedAnnealing(UndirectedGraph<String, DefaultEdge> graph, Set<String> untabulatedVertices, 
-			int maxItersTotal, int maxItersSameEnergy, int maxWorstSolRejections, int maxAcceptableWorstSolXTempLevel,  
+			int maxItersTotal, int maxItersWithoutChange, int maxWorseSolRejections, int maxAcceptableWorseSolXTempLevel,  
 			double startTemp, double minTemp, double startTempDescentRate, int itersXDescentRate) {
 		
 		// Initialize new VAT entries by decrementally-degree-sorted round-robin
@@ -503,15 +520,19 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		
 		// Modify new VAT entries to minimize number of crossing edges
 		
+		Map<String, List<String>> globallyOptimalNewVATRows = cloneVATRowSet(newVATRows);
+		
+		//double denominatorEnergyForm = (double)upperBoundCost(graph, newVATRows);
+		double denominatorEnergyForm = (double)((commonK - 1) * graph.edgeSet().size());
+		double energyCurrentSolution = (double)extendedVATCost(graph, newVATRows, true) / denominatorEnergyForm;
+		double energyGloballyOptimalSolution = energyCurrentSolution;
+		
 		double temperature = startTemp;
 		double tempDescentRate = startTempDescentRate; 
 		int iterCount = 0;
-		int itersSameEenergyCount = 0;
-		int acceptedWorstSolutions = 0;
-		int rejectedWorstSolutions = 0;
-		
-		double denominatorEnergyForm = (double)upperBoundCost(graph, newVATRows);
-		double energyCurrentSolution = (double)groupCost(graph, newVATRows, true) / denominatorEnergyForm;
+		int itersWithoutChangeCount = 0;
+		int acceptedWorseSolutions = 0;
+		int rejectedWorseSolutions = 0;
 		
 		SecureRandom random = new SecureRandom();
 				
@@ -531,44 +552,62 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			// b) with prob. 0.005 if it is equally costly 
 			// c) with prob. exp(-delta E / T) if it is worse
 			
-			double energyNewSolution = (double)groupCost(graph, modifNewVATRows, true) / denominatorEnergyForm;
+			double energyNewSolution = (double)extendedVATCost(graph, modifNewVATRows, true) / denominatorEnergyForm;
 			
-			if (energyNewSolution < energyCurrentSolution) {	
+			if (energyNewSolution < energyCurrentSolution) {
 				newVATRows = modifNewVATRows;
 				energyCurrentSolution = energyNewSolution;
-				itersSameEenergyCount = 0;
+				itersWithoutChangeCount = 0;
+				if (energyNewSolution < energyGloballyOptimalSolution) {
+					globallyOptimalNewVATRows = modifNewVATRows;
+					energyGloballyOptimalSolution = energyNewSolution;
+				}
 			}
-			else if (energyNewSolution == energyCurrentSolution) {   // This is in fact quite unlikely to happen for energy defined in terms of anonymization cost
-				if (random.nextDouble() < 0.005d)   // Take equal energy solution with prob. 0.005
+			else if (energyNewSolution == energyCurrentSolution) {
+				if (random.nextDouble() < 0.05d) {   // Take equal energy solution with prob. 0.05
 					newVATRows = modifNewVATRows;
-				itersSameEenergyCount++;
+					itersWithoutChangeCount = 0;
+				}
+				else
+					itersWithoutChangeCount++;
 			} 
 			else {  // energyNewSolution > energyCurrentSolution				
-				// Accept worse solution with prob. exp(-delta E / T)
-				if (random.nextDouble() < Math.exp((double)(energyCurrentSolution - energyNewSolution) / temperature)) {
+				// Accept a worse solution with prob. exp(-delta E / T)
+				double prob = Math.exp((double)(energyCurrentSolution - energyNewSolution) / temperature);
+				if (random.nextDouble() < prob) {
 					newVATRows = modifNewVATRows;
-					acceptedWorstSolutions++;
+					energyCurrentSolution = energyNewSolution;
+					acceptedWorseSolutions++;
+					itersWithoutChangeCount = 0;
 				}
-				else 
-					rejectedWorstSolutions++;
-				itersSameEenergyCount = 0;
+				else {
+					rejectedWorseSolutions++;
+					itersWithoutChangeCount++;
+				}
 			}
+			
+			iterCount++;
 			
 			// Update annealing parameters
 			
-			if (acceptedWorstSolutions >= maxAcceptableWorstSolXTempLevel) {
+			if (acceptedWorseSolutions >= maxAcceptableWorseSolXTempLevel) {
 				temperature *= tempDescentRate;
-				acceptedWorstSolutions = 0;
-				rejectedWorstSolutions = 0;
+				acceptedWorseSolutions = 0;
+				rejectedWorseSolutions = 0;
 			}
 			
 			if (iterCount % itersXDescentRate == itersXDescentRate - 1)
-				tempDescentRate -= tempDescentRate * 10.0d;
+				tempDescentRate *= 0.9d;
 			
 		}
-		while (iterCount < maxItersTotal && temperature >= minTemp && itersSameEenergyCount < maxItersSameEnergy && (rejectedWorstSolutions < maxWorstSolRejections || acceptedWorstSolutions > 0));
+		while (iterCount < maxItersTotal && temperature >= minTemp && itersWithoutChangeCount < maxItersWithoutChange && (rejectedWorseSolutions < maxWorseSolRejections || acceptedWorseSolutions > 0));
 		// The process stops when temperature is sufficiently low, a sufficient number of iterations are performed without changing
 		// system energy, or up to maxWorstSolRejections worse solutions are rejected without accepting none for some temperature
+		
+		// Add new entries to VAT
+		for (String rid : globallyOptimalNewVATRows.keySet())
+			globalVAT.put(rid, globallyOptimalNewVATRows.get(rid));
+		
 	}
 	
 	/***
@@ -654,10 +693,15 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		return modifNewVATRows;
 	}
 	
-	// This is a loose, efficiently computable upper bound to be used as the normalizing factor 
-	// for converting anonymization cost into energy in the simulated annealing VAT update method
-	// Counting all neighborhoods as possible edges to copy, rather than just those in different 
-	// columns of the VAT, as done in computing the VAT-specific cost
+	/***
+	 *
+	 * This is a loose, efficiently computable upper bound to be used as the normalizing factor
+	 * for converting anonymization cost into energy in the simulated annealing VAT update method
+	 * Counting all neighborhoods as possible edges to copy, rather than just those in different
+	 * columns of the VAT, as done in computing the VAT-specific cost
+	 * 
+	 */
+	
 	protected int upperBoundCost(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> vatRowSet) {
 		
 		Set<String> vertsInVATRows = new TreeSet<>();
@@ -673,6 +717,13 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		return upperBound;
 	}
 	
+	protected int extendedVATCost(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> newVATRows, boolean countCrossingEdges) {
+		Map<String, List<String>> extendedVAT = new TreeMap<>(globalVAT); 
+		for (String rid : newVATRows.keySet())
+			extendedVAT.put(rid, newVATRows.get(rid));
+		return groupCost(graph, extendedVAT, countCrossingEdges);
+	}
+	
 	/***
 	 * 
 	 * The purpose of this main method is to serve as support for debugging and testing
@@ -682,9 +733,8 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	public static void main(String [] args) {
 		
 		timesExceptionOccurred = 0;
-		int totalNumberImprovementsLocalSearch = 0, numberRunsWithoutImprovement = 0, totalNumberRuns = 0;
 		
-		for (int iter = 0; iter < 1000; iter++) {
+		for (int iter = 0; iter < 100; iter++) {
 			
 			System.out.println("Iteration # " + iter);
 			
@@ -693,7 +743,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			// Create anonymizers for k \in ks
 			Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizers = new TreeMap<>();
 			for (int k : ks) 
-				anonymizers.put(k, new IncrementalKMatchSequenceAnonymizer(k));
+				anonymizers.put(k, new IncrementalKMatchSequenceAnonymizer(k, 2));
 			
 			System.out.println("First snapshot");
 			
@@ -747,10 +797,6 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
 				System.out.println("\t\tFinal edge count: " + clone.edgeSet().size());
 				System.out.println("\t\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
-				totalNumberImprovementsLocalSearch += anonymizers.get(k).getLocalSearchImprovementCount();
-				if (anonymizers.get(k).getLocalSearchImprovementCount() == 0)
-					numberRunsWithoutImprovement++;
-				totalNumberRuns++;
 			}
 			
 			System.out.println("");
@@ -778,8 +824,6 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
 				System.out.println("\t\tFinal edge count: " + clone.edgeSet().size());
 				System.out.println("\t\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
-				totalNumberImprovementsLocalSearch += anonymizers.get(k).getLocalSearchImprovementCount();
-				totalNumberRuns++;
 			}
 			
 			System.out.println("");
@@ -787,10 +831,6 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		
 		System.out.println(timesExceptionOccurred + " exceptions occurred");
 		System.out.println();
-		System.out.println("Number of improvements in local search: " + totalNumberImprovementsLocalSearch);
-		System.out.println("Average number of improvements in local search: " + (double)totalNumberImprovementsLocalSearch/(double)totalNumberRuns);
-		System.out.println("Number of runs without improvements in local search: " + numberRunsWithoutImprovement);
-		System.out.println("Percentage of runs without improvements in local search: " + (double)(numberRunsWithoutImprovement * 100) / (double)totalNumberRuns);
 		
 	}
 	
