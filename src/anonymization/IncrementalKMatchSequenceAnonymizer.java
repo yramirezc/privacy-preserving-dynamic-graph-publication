@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
+import org.jgrapht.Graphs;
 import org.jgrapht.UndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
@@ -23,7 +25,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	 * Declarations
 	 */
 	
-	protected static int timesExceptionOccurred = 0;
+	protected static int metisFailureCount = 0;
 	
 	protected int commonK = 2;
 	
@@ -36,12 +38,15 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	 */ 
 	protected int optimizationType;
 	
+	protected List<Set<String>> vertexSetsXGlobalVATColumn;
+	
 	/***
 	 * Public interface
 	 */
 	
 	public IncrementalKMatchSequenceAnonymizer(int k) {
 		globalVAT = null;
+		vertexSetsXGlobalVATColumn = null;
 		commonK = k;
 		firstSnapshotAnonymized = false;
 		optimizationType = 0;   // No optimization
@@ -49,6 +54,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	
 	public IncrementalKMatchSequenceAnonymizer(int k, int optType) {
 		globalVAT = null;
+		vertexSetsXGlobalVATColumn = null;
 		commonK = k;
 		firstSnapshotAnonymized = false;
 		optimizationType = optType;
@@ -57,6 +63,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	public void restart(int k) {
 		commonK = k;
 		globalVAT = null;
+		vertexSetsXGlobalVATColumn = null;
 		firstSnapshotAnonymized = false;
 	}
 
@@ -73,7 +80,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		if (k == commonK) 
 			anonymizeGraph(graph, k, randomize, uniqueIdFileName);
 		else 
-			throw new RuntimeException("Calling anonymization for k = " + k + ", anonymizer created for k = " + commonK);
+			throw new RuntimeException("Forcing anonymization for k = " + k + ", anonymizer created for k = " + commonK);
 	}
 	
 	@Override
@@ -98,6 +105,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		if (commonK < graph.vertexSet().size()) {
 			
 			// If the number of vertices is not a multiple of commonK, leave graph.vertexSet().size() % commonK random vertices pending
+			
 			int pendingVertCount = graph.vertexSet().size() % commonK;
 			if (pendingVertCount > 0) {
 				List<String> vertList = new ArrayList<>(graph.vertexSet());
@@ -109,11 +117,11 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			}
 			
 			// Perform anonymization on trimmed graph
-			globalVAT = new TreeMap<>();
+			
 			performAnonymizationFirstSnapshot(graph, randomize, uniqueIdFileName);
 		}
 		else {
-			// Return a null graph, leave all current vertices pending 
+			// Return a null graph (0 vertices)
 			Set<String> tmpVertSet = new TreeSet<>(graph.vertexSet());
 			graph.removeAllVertices(tmpVertSet);
 		}
@@ -132,11 +140,11 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			
 		} catch (IOException | InterruptedException | RuntimeException e) {
 			
-			timesExceptionOccurred++;   // Just update, initialization and use up to the caller
+			metisFailureCount++;   // Just update, initialization and use up to the caller
 			
 			// Since some problem occurred in running METIS or handling its outputs, 
-			// a naive partition is made by decrementally sorting vertices by degree 
-			// and assigning each vertex to a partition using round-robin 			
+			// the initial partition is obtained by decrementally sorting vertices 
+			// by degree and assigning each vertex to a partition using round-robin 			
 			partition = new TreeMap<>();
 			for (int i = 0; i < commonK; i++)
 				partition.put(i + "", new TreeSet<String>());
@@ -146,7 +154,11 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		}
 		
 		// Perform the anonymization
-		globalVAT = initializeVAT(graph, partition);
+		initializeVAT(graph, partition);
+		if (optimizationType == 1)
+			optimizeGlobalVATRandLocalSearch(graph, 10, 1000, 500);
+		else if (optimizationType == 2)
+			optimizeGlobalVATSimulatedAnnealing(graph, 10000, 5000, 2500, 50, 0.005d, 0.000001d, 0.95d, 500);
 		alignBlocks(graph, globalVAT);
 		if (randomized)
 			randomlyUniformizeCrossingEdges(graph);
@@ -154,9 +166,9 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			copyCrossingEdges(graph);   // Original approach by Zou et al.	
 	}
 	
-	protected Map<String, List<String>> initializeVAT(UndirectedGraph<String, DefaultEdge> graph, Map<String, Set<String>> partition) {
+	protected void initializeVAT(UndirectedGraph<String, DefaultEdge> graph, Map<String, Set<String>> partition) {
 		
-		Map<String, List<String>> auxVAT = new TreeMap<>();
+		globalVAT = new TreeMap<>();
 		Set<String> vertsInVAT = new TreeSet<>();
 		SecureRandom random = new SecureRandom();   // Will be used to randomize all equally optimal decisions
 		
@@ -199,7 +211,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		}
 		
 		// Rebuilding blocks-as-subgraphs structure used in KMatchAnonymizerUsingMETIS 
-		// and keeping the rest of the implementation as it was
+		// and keeping the rest of the implementation as it was in there
 		
 		List<UndirectedGraph<String, DefaultEdge>> group = new ArrayList<>();
 		for (String pid : partition.keySet())
@@ -222,7 +234,8 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				
 		List<String> newVATKeys = new ArrayList<>();
 		
-		// First row of VAT for this group
+		// First row of VAT
+		
 		if (groupWideExistingDegrees.size() > 0) {   // A common max degree exists
 			
 			List<String> newRowVAT = new ArrayList<>();
@@ -252,7 +265,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 					newRowVAT.add(newEntry);
 					vertsInVAT.add(newEntry);
 				}
-				auxVAT.put(rowKey, newRowVAT);
+				globalVAT.put(rowKey, newRowVAT);
 				
 			}
 		}
@@ -296,11 +309,11 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 					newRowVAT.add(newEntry);
 					vertsInVAT.add(newEntry);
 				}
-				auxVAT.put(rowKey, newRowVAT);
+				globalVAT.put(rowKey, newRowVAT);
 			}
 		}
 		
-		// Remaining rows of VAT for this group
+		// Remaining rows of VAT
 		
 		boolean untabulatedVerticesFound = true;
 		
@@ -354,13 +367,333 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 						newRowVAT.add(newEntry);
 						vertsInVAT.add(newEntry);
 					}
-					auxVAT.put(rowKey, newRowVAT);
+					globalVAT.put(rowKey, newRowVAT);
 				}
 			}
 			
 		}
 		
-		return auxVAT;
+		// Initialize vertexSetsXGlobalVATColumn
+		
+		vertexSetsXGlobalVATColumn = new ArrayList<>();
+		for (int i = 0; i < commonK; i++) 
+			vertexSetsXGlobalVATColumn.add(new TreeSet<String>());
+		for (String rowKey : globalVAT.keySet())
+			for (int i = 0; i < commonK; i++) {
+				String vCell = globalVAT.get(rowKey).get(i);
+				vertexSetsXGlobalVATColumn.get(i).add(vCell);
+			}
+		
+	}
+	
+	protected void optimizeGlobalVATRandLocalSearch(UndirectedGraph<String, DefaultEdge> graph, int roundCount, int maxItersXRound, int maxItersNoImprov) {
+		
+		Map<String, List<String>> globallyOptimalNewVAT = cloneVATRowSet(globalVAT);
+		int costGloballyOptimalSolution = fullVATCost(graph, globallyOptimalNewVAT);
+				
+		for (int round = 0; round < roundCount; round++) {
+			
+			// Determine initial solution for this round
+			
+			Map<String, List<String>> currentVAT = (round == 0)? 
+					cloneVATRowSet(globalVAT)              // Use globalVAT as the initial solution for the first round  
+					: randomlyModifiedVATRowSet(globalVAT, 3);   // Start every other round with a shuffled version of globalVAT  
+			int currentCost = fullVATCost(graph, currentVAT);
+			if (currentCost < costGloballyOptimalSolution) {
+				globallyOptimalNewVAT = cloneVATRowSet(currentVAT);
+				costGloballyOptimalSolution = currentCost;
+			}
+			
+			// Run local search
+			
+			int nonImprovIterCount = 0;
+			
+			for (int iter = 0; iter < maxItersXRound; iter++) {
+				
+				// Randomly swap a pair of elements in the new VAT rows
+				Map<String, List<String>> newVAT = randomlyModifiedVATRowSet(currentVAT, 1);
+				
+				// Evaluate swap and keep if better
+				int newCost = fullVATCost(graph, newVAT);
+				if (newCost < currentCost) {
+					currentCost = newCost;
+					nonImprovIterCount = 0;
+					currentVAT = newVAT;
+					if (newCost < costGloballyOptimalSolution) {
+						costGloballyOptimalSolution = newCost;
+						globallyOptimalNewVAT = newVAT;
+					}
+				}
+				else if (++nonImprovIterCount >= maxItersNoImprov)
+					break;
+			}
+			
+		}
+		
+		// Update globalVAT 
+		
+		globalVAT = cloneVATRowSet(globallyOptimalNewVAT);
+		
+		// Update vertexSetsXGlobalVATColumn
+		
+		vertexSetsXGlobalVATColumn = new ArrayList<>();
+		for (int i = 0; i < commonK; i++) 
+			vertexSetsXGlobalVATColumn.add(new TreeSet<String>());
+		for (String rowKey : globalVAT.keySet())
+			for (int i = 0; i < commonK; i++) {
+				String vCell = globalVAT.get(rowKey).get(i);
+				vertexSetsXGlobalVATColumn.get(i).add(vCell);
+			}
+		
+	}
+	
+	/***
+	 * 
+	 * @param graph
+	 * @param untabulatedVertices
+	 * @param maxItersTotal
+	 * @param maxItersSameEnergy: maximum number iterations at the same energy level, after which the search can stop
+	 * @param maxWorstSolRejections: maximum number of rejected worse solutions, after which the search can stop
+	 * @param maxAcceptableWorstSolXTempLevel: maximum number of accepted worse solutions for each temperature, after which temperature must be reduced  
+	 * @param startTemp
+	 * @param minTemp: minimum temperature, below which the search can stop
+	 * @param startTempDescentRate: initial temperature descent rate
+	 * @param itersXDescentRate: the number of iterations after which the temperature descent rate is reduced so temperature descends faster as the process advances
+	 */
+	
+	protected void optimizeGlobalVATSimulatedAnnealing(UndirectedGraph<String, DefaultEdge> graph, 
+			int maxItersTotal, int maxItersWithoutChange, 
+			int maxWorseSolRejections, int maxAcceptableWorseSolXTempLevel,  
+			double startTemp, double minTemp, double startTempDescentRate, int itersXDescentRate) {
+		
+		Map<String, List<String>> globallyOptimalNewVATRows = cloneVATRowSet(globalVAT);
+		
+		Map<String, List<String>> currentVAT = cloneVATRowSet(globalVAT);
+		double denominatorEnergyForm = (double)((commonK - 1) * graph.edgeSet().size());
+		double energyCurrentSolution = (double)fullVATCost(graph, globalVAT) / denominatorEnergyForm;
+		double energyGloballyOptimalSolution = energyCurrentSolution;
+		
+		double temperature = startTemp;
+		double tempDescentRate = startTempDescentRate; 
+		int iterCount = 0;
+		int itersWithoutChangeCount = 0;
+		int acceptedWorseSolutions = 0;
+		int rejectedWorseSolutions = 0;
+		
+		SecureRandom random = new SecureRandom();
+				
+		do {
+			
+			// Get a new candidate solution 
+			// Perform a local change with prob. 0.95, or an exploratory change with prob. 0.05
+			
+			Map<String, List<String>> newVAT = null;
+			if (random.nextDouble() < 0.95d)
+				newVAT = randomlyModifiedVATRowSet(currentVAT, 1);
+			else
+				newVAT = randomlyModifiedVATRowSet(currentVAT, 3);
+			
+			// Evaluate new candidate solution and keep it:
+			// a) with prob. 1 if it is better
+			// b) with prob. 0.005 if it is equally costly 
+			// c) with prob. exp(-delta E / T) if it is worse
+			
+			double energyNewSolution = (double)fullVATCost(graph, newVAT) / denominatorEnergyForm;
+			
+			if (energyNewSolution < energyCurrentSolution) {
+				currentVAT = newVAT;
+				energyCurrentSolution = energyNewSolution;
+				itersWithoutChangeCount = 0;
+				if (energyNewSolution < energyGloballyOptimalSolution) {
+					globallyOptimalNewVATRows = newVAT;
+					energyGloballyOptimalSolution = energyNewSolution;
+				}
+			}
+			else if (energyNewSolution == energyCurrentSolution) {
+				if (random.nextDouble() < 0.05d) {   // Take equal energy solution with prob. 0.05
+					currentVAT = newVAT;
+					itersWithoutChangeCount = 0;
+				}
+				else
+					itersWithoutChangeCount++;
+			} 
+			else {  // energyNewSolution > energyCurrentSolution				
+				// Accept a worse solution with prob. exp(-delta E / T)
+				double prob = Math.exp((double)(energyCurrentSolution - energyNewSolution) / temperature);
+				if (random.nextDouble() < prob) {
+					currentVAT = newVAT;
+					energyCurrentSolution = energyNewSolution;
+					acceptedWorseSolutions++;
+					itersWithoutChangeCount = 0;
+				}
+				else {
+					rejectedWorseSolutions++;
+					itersWithoutChangeCount++;
+				}
+			}
+			
+			iterCount++;
+			
+			// Update annealing parameters
+			
+			if (acceptedWorseSolutions >= maxAcceptableWorseSolXTempLevel) {
+				temperature *= tempDescentRate;
+				acceptedWorseSolutions = 0;
+				rejectedWorseSolutions = 0;
+			}
+			
+			if (iterCount % itersXDescentRate == itersXDescentRate - 1)
+				tempDescentRate *= 0.9d;
+			
+		}
+		while (iterCount < maxItersTotal && temperature >= minTemp && itersWithoutChangeCount < maxItersWithoutChange && (rejectedWorseSolutions < maxWorseSolRejections || acceptedWorseSolutions > 0));
+		// The process stops when temperature is sufficiently low, a sufficient number of iterations are performed without changing
+		// system energy, or up to maxWorstSolRejections worse solutions are rejected without accepting none for some temperature
+		
+		// Update globalVAT 
+		
+		globalVAT = cloneVATRowSet(globallyOptimalNewVATRows);
+		
+		// Update vertexSetsXGlobalVATColumn
+		
+		vertexSetsXGlobalVATColumn = new ArrayList<>();
+		for (int i = 0; i < commonK; i++) 
+			vertexSetsXGlobalVATColumn.add(new TreeSet<String>());
+		for (String rowKey : globalVAT.keySet())
+			for (int i = 0; i < commonK; i++) {
+				String vCell = globalVAT.get(rowKey).get(i);
+				vertexSetsXGlobalVATColumn.get(i).add(vCell);
+			}
+	}
+	
+	/***
+	 * 
+	 * @param currentVATRowSet:
+	 * @param changeType: 0 --> swap two elements in the same row
+	 *                    1 --> swap any two elements 
+	 *                    2 --> perform a number of type 0 modifications ranging from minChangeCount to 3 * minChangeCount,
+	 *                          where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
+	 *                    else: perform a number of type 1 modifications ranging from minChangeCount to 3 * minChangeCount,
+	 *                          where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
+	 */
+	
+	protected Map<String, List<String>> randomlyModifiedVATRowSet(Map<String, List<String>> currentVATRowSet, int changeType) {
+		
+		Map<String, List<String>> newVATRowSet = cloneVATRowSet(currentVATRowSet);
+		
+		SecureRandom random = new SecureRandom();
+		
+		int changeCount = 1;
+		int effectiveChangeType = changeType;
+		if (changeType == 2) {
+			int minChangeCount = (currentVATRowSet.size() * commonK) / 5;
+			changeCount = minChangeCount + random.nextInt(2 * minChangeCount + 1);
+			effectiveChangeType = 0;
+		}
+		else if (changeType >= 3) {
+			int minChangeCount = (currentVATRowSet.size() * commonK) / 5;
+			changeCount = minChangeCount + random.nextInt(2 * minChangeCount + 1);
+			effectiveChangeType = 1;
+		}
+		
+		for (int ch = 0; ch < changeCount; ch++) {
+			
+			// Randomly select elements to swap
+			List<String> vatKeys = new ArrayList<>(newVATRowSet.keySet());
+			String swapKey1 = vatKeys.get(random.nextInt(vatKeys.size()));
+			int swapOrd1 = random.nextInt(newVATRowSet.get(swapKey1).size());
+			String swapKey2 = swapKey1;   // Initialization required, using swapKey1  
+			int swapOrd2;
+			if (effectiveChangeType == 0) {   // A type 0 change will swap two elements on the same row
+				swapOrd2 = random.nextInt(newVATRowSet.get(swapKey2).size());
+				while (swapOrd2 == swapOrd1)
+					swapOrd2 = random.nextInt(newVATRowSet.get(swapKey2).size());
+			}
+			else {  // effectiveChangeType == 1, swap two elements on different rows 
+				while (swapKey2.equals(swapKey1))
+					swapKey2 = vatKeys.get(random.nextInt(vatKeys.size()));
+				swapOrd2 = random.nextInt(newVATRowSet.get(swapKey2).size());
+			}
+			
+			// Perform the swap
+			String tmp = newVATRowSet.get(swapKey1).get(swapOrd1);
+			newVATRowSet.get(swapKey1).set(swapOrd1, newVATRowSet.get(swapKey2).get(swapOrd2));
+			newVATRowSet.get(swapKey2).set(swapOrd2, tmp);
+			
+			// Update row keys if needed
+			if (swapOrd1 == 0 && swapOrd2 != 0) {
+				List<String> row1 = newVATRowSet.get(swapKey1);
+				newVATRowSet.remove(swapKey1);
+				newVATRowSet.put(row1.get(0), row1);
+			}
+			else if (swapOrd1 != 0 && swapOrd2 == 0) {
+				List<String> row2 = newVATRowSet.get(swapKey2);
+				newVATRowSet.remove(swapKey2);
+				newVATRowSet.put(row2.get(0), row2);
+			}
+			else if (swapOrd1 == 0 && swapOrd2 == 0) {
+				List<String> row1 = newVATRowSet.get(swapKey1);
+				List<String> row2 = newVATRowSet.get(swapKey2);
+				newVATRowSet.remove(swapKey1);
+				newVATRowSet.remove(swapKey2);
+				newVATRowSet.put(row1.get(0), row1);
+				newVATRowSet.put(row2.get(0), row2);
+			}
+			
+		}
+		
+		return newVATRowSet;
+		
+	}
+		
+	protected int fullVATCost(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> fullVAT) {
+		
+		// First, simulate alignBlocks to account for the editions that it would perform 
+		List<String> vatKeys = new ArrayList<>(fullVAT.keySet());
+		int costBlockAlignment = 0;
+		for (int i = 0; i < vatKeys.size() - 1; i++)
+			for (int j = i + 1; j < vatKeys.size(); j++) {
+				// Check if the edge exists in some block and doesn't exist in some other
+				boolean edgeFound = false, nonEdgeFound = false;
+				for (int c = 0; (!edgeFound || !nonEdgeFound) && c < commonK; c++) {
+					if (graph.containsVertex(fullVAT.get(vatKeys.get(i)).get(c)) && graph.containsVertex(fullVAT.get(vatKeys.get(j)).get(c)) 
+						&& graph.containsEdge(fullVAT.get(vatKeys.get(i)).get(c), fullVAT.get(vatKeys.get(j)).get(c)))
+						edgeFound = true;
+					if (!graph.containsVertex(fullVAT.get(vatKeys.get(i)).get(c)) || !graph.containsVertex(fullVAT.get(vatKeys.get(j)).get(c)) 
+						|| !graph.containsEdge(fullVAT.get(vatKeys.get(i)).get(c), fullVAT.get(vatKeys.get(j)).get(c)))
+						nonEdgeFound = true;
+				}
+				if (edgeFound && nonEdgeFound) {
+					for (int c = 0; c < commonK; c++)
+						if (!graph.containsVertex(fullVAT.get(vatKeys.get(i)).get(c))
+							|| !graph.containsVertex(fullVAT.get(vatKeys.get(j)).get(c))
+							|| !graph.containsEdge(fullVAT.get(vatKeys.get(i)).get(c), fullVAT.get(vatKeys.get(j)).get(c)))
+							costBlockAlignment++;
+				}
+			}
+		
+		// Then, compute the contribution of crossing edge copy to the overall number of editions
+		int costCrossingEdges = 0;
+		
+		List<Set<String>> vertexSetsXBlock = new ArrayList<>();
+		for (int i = 0; i < commonK; i++) 
+			vertexSetsXBlock.add(new TreeSet<String>());
+		for (String rowKey : fullVAT.keySet())
+			for (int i = 0; i < commonK; i++) {
+				String vCell = fullVAT.get(rowKey).get(i);
+				vertexSetsXBlock.get(i).add(vCell);
+			}
+		int sumCrossEdges = 0;
+		for (int i = 0; i < commonK; i++) {
+			for (String v : vertexSetsXBlock.get(i)) {
+				Set<String> neighbours = new TreeSet<>(Graphs.neighborListOf(graph, v));
+				neighbours.removeAll(vertexSetsXBlock.get(i));
+				sumCrossEdges += neighbours.size();
+			}
+		}
+		costCrossingEdges = ((commonK - 1) * sumCrossEdges) / 2;
+		
+		return costBlockAlignment + costCrossingEdges;
 	}
 	
 	/***
@@ -404,8 +737,12 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				}
 			}
 			
-			for (String key : vatRowsToRemove)
+			for (String key : vatRowsToRemove) {
+				List<String> rowToRemove = globalVAT.get(key);
+				for (int i = 0; i < commonK; i++)
+					vertexSetsXGlobalVATColumn.get(i).remove(rowToRemove.get(i));
 				globalVAT.remove(key);
+			}
 			
 			// If the number of untabulated vertices is not a multiple of commonK, 
 			// leave untabulatedVertices.size() % commonK random vertices pending
@@ -422,11 +759,11 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			
 			// Perform anonymization
 			if (optimizationType == 0)
-				updateVATRoundRobin(graph, untabulatedVertices);
+				extendVAT(newVATRowsRoundRobin(graph, untabulatedVertices));
 			else if (optimizationType == 1)
-				updateVATRandLocalSearch(graph, untabulatedVertices, 1000, 500);
+				extendVAT(optimizedVATRowsRandLocalSearch(graph, newVATRowsRoundRobin(graph, untabulatedVertices), 10, 1000, 500));
 			else
-				updateVATSimulatedAnnealing(graph, untabulatedVertices, 10000, 5000, 2500, 50, 0.005d, 0.000001d, 0.95d, 500);
+				extendVAT(optimizedVATRowsSimulatedAnnealing(graph, newVATRowsRoundRobin(graph, untabulatedVertices), 10000, 5000, 2500, 50, 0.005d, 0.000001d, 0.95d, 500));
 			alignBlocks(graph, globalVAT);
 			if (randomize)
 				randomlyUniformizeCrossingEdges(graph);
@@ -438,21 +775,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			anonymizeFirstSnapshot(graph, randomize, uniqueIdFileName);
 	}
 	
-	protected void updateVATRoundRobin(UndirectedGraph<String, DefaultEdge> graph, Set<String> untabulatedVertices) {
-		// Create new VAT entries by decrementally-degree-sorted round-robin
-		List<String> degreeSortedUntabVerts = GraphUtil.degreeSortedVertexList(graph, untabulatedVertices, false);
-		for (int i = 0; i < degreeSortedUntabVerts.size() / commonK; i++) {
-			String newRowKey = degreeSortedUntabVerts.get(i * commonK);
-			List<String> newRowEntries = new ArrayList<>();
-			for (int j = 0; j < commonK; j++)
-				newRowEntries.add(degreeSortedUntabVerts.get(i * commonK + j));
-			globalVAT.put(newRowKey, newRowEntries);
-		}
-	}
-	
-	protected void updateVATRandLocalSearch(UndirectedGraph<String, DefaultEdge> graph, Set<String> untabulatedVertices, int maxItersTotal, int maxItersNoImprov) {
-		
-		// Initialize new VAT entries by decrementally-degree-sorted round-robin
+	protected Map<String, List<String>> newVATRowsRoundRobin(UndirectedGraph<String, DefaultEdge> graph, Set<String> untabulatedVertices) {
 		Map<String, List<String>> newVATRows = new TreeMap<>();
 		List<String> degreeSortedUntabVerts = GraphUtil.degreeSortedVertexList(graph, untabulatedVertices, false);
 		for (int i = 0; i < degreeSortedUntabVerts.size() / commonK; i++) {
@@ -462,31 +785,63 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				newRowEntries.add(degreeSortedUntabVerts.get(i * commonK + j));
 			newVATRows.put(newRowKey, newRowEntries);
 		}
+		return newVATRows;
+	}
+	
+	protected void extendVAT(Map<String, List<String>> newVATRows) {
+		for (String key : newVATRows.keySet()) {
+			List<String> rowToAdd = newVATRows.get(key);
+			for (int i = 0; i < commonK; i++)
+				vertexSetsXGlobalVATColumn.get(i).add(rowToAdd.get(i));
+			globalVAT.put(key, rowToAdd);
+		}
+	}
+	
+	protected Map<String, List<String>> optimizedVATRowsRandLocalSearch(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> initialVATRows, int roundCount, int maxItersXRound, int maxItersNoImprov) {
+				
+		Map<String, List<String>> globallyOptimalNewVATRows = cloneVATRowSet(initialVATRows);
+		int costGloballyOptimalSolution = vatExtensionCost(graph, globallyOptimalNewVATRows);
 		
-		// Modify new VAT entries to minimize number of crossing edges
-		int nonImprovIterCount = 0;
-		int currentCost = extendedVATCost(graph, newVATRows, true);
-		
-		for (int i = 0; i < maxItersTotal; i++) {
+		for (int round = 0; round < roundCount; round++) {
 			
-			// Randomly swap a pair of elements in the new VAT rows
-			Map<String, List<String>> modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, 1); 
+			// Determine initial solution for this round
 			
-			// Evaluate swap and keep if better
-			int newCost = extendedVATCost(graph, modifNewVATRows, true);
-			if (newCost < currentCost) {
-				currentCost = newCost;
-				nonImprovIterCount = 0;
-				newVATRows = modifNewVATRows;
+			Map<String, List<String>> currentVATRows = (round == 0)? 
+					cloneVATRowSet(initialVATRows)                    // Use initialVATRows as the initial solution for the first round  
+					: randomlyModifiedVATRowSet(initialVATRows, 3);   // Start every other round with a shuffled version of initialVATRows  
+			int currentCost = vatExtensionCost(graph, currentVATRows);
+			if (currentCost < costGloballyOptimalSolution) {
+				globallyOptimalNewVATRows = cloneVATRowSet(currentVATRows);
+				costGloballyOptimalSolution = currentCost;
 			}
-			else if (++nonImprovIterCount >= maxItersNoImprov)
-				break;
+			
+			// Run local search
+			
+			int nonImprovIterCount = 0;
+			
+			for (int iter = 0; iter < maxItersXRound; iter++) {
+				
+				// Randomly swap a pair of elements in the new VAT rows
+				Map<String, List<String>> newVATRows = randomlyModifiedVATRowSet(currentVATRows, 1); 
+				
+				// Evaluate swap and keep if better
+				int newCost = vatExtensionCost(graph, newVATRows);
+				if (newCost < currentCost) {
+					currentCost = newCost;
+					nonImprovIterCount = 0;
+					currentVATRows = newVATRows;
+					if (newCost < costGloballyOptimalSolution) {
+						costGloballyOptimalSolution = newCost;
+						globallyOptimalNewVATRows = newVATRows;
+					}
+				}
+				else if (++nonImprovIterCount >= maxItersNoImprov)
+					break;
+			}
+			
 		}
 		
-		// Add new entries to VAT
-		for (String rid : newVATRows.keySet())
-			globalVAT.put(rid, newVATRows.get(rid));
-		
+		return globallyOptimalNewVATRows;
 	}
 	
 	/***
@@ -503,28 +858,14 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	 * @param itersXDescentRate: the number of iterations after which the temperature descent rate is reduced so temperature descends faster as the process advances
 	 */
 	
-	protected void updateVATSimulatedAnnealing(UndirectedGraph<String, DefaultEdge> graph, Set<String> untabulatedVertices, 
+	protected Map<String, List<String>> optimizedVATRowsSimulatedAnnealing(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> currentVATRows, 
 			int maxItersTotal, int maxItersWithoutChange, int maxWorseSolRejections, int maxAcceptableWorseSolXTempLevel,  
 			double startTemp, double minTemp, double startTempDescentRate, int itersXDescentRate) {
 		
-		// Initialize new VAT entries by decrementally-degree-sorted round-robin
-		Map<String, List<String>> newVATRows = new TreeMap<>();
-		List<String> degreeSortedUntabVerts = GraphUtil.degreeSortedVertexList(graph, untabulatedVertices, false);
-		for (int i = 0; i < degreeSortedUntabVerts.size() / commonK; i++) {
-			String newRowKey = degreeSortedUntabVerts.get(i * commonK);
-			List<String> newRowEntries = new ArrayList<>();
-			for (int j = 0; j < commonK; j++)
-				newRowEntries.add(degreeSortedUntabVerts.get(i * commonK + j));
-			newVATRows.put(newRowKey, newRowEntries);
-		}
+		Map<String, List<String>> globallyOptimalNewVATRows = cloneVATRowSet(currentVATRows);
 		
-		// Modify new VAT entries to minimize number of crossing edges
-		
-		Map<String, List<String>> globallyOptimalNewVATRows = cloneVATRowSet(newVATRows);
-		
-		//double denominatorEnergyForm = (double)upperBoundCost(graph, newVATRows);
 		double denominatorEnergyForm = (double)((commonK - 1) * graph.edgeSet().size());
-		double energyCurrentSolution = (double)extendedVATCost(graph, newVATRows, true) / denominatorEnergyForm;
+		double energyCurrentSolution = (double)vatExtensionCost(graph, currentVATRows) / denominatorEnergyForm;
 		double energyGloballyOptimalSolution = energyCurrentSolution;
 		
 		double temperature = startTemp;
@@ -541,31 +882,31 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			// Get a new candidate solution 
 			// Perform a local change with prob. 0.95, or an exploratory change with prob. 0.05
 			
-			Map<String, List<String>> modifNewVATRows = null;
+			Map<String, List<String>> newVATRows = null;
 			if (random.nextDouble() < 0.95d)
-				modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, 1);
+				newVATRows = randomlyModifiedVATRowSet(currentVATRows, 1);
 			else
-				modifNewVATRows = randomlyModifiedVATRowSet(newVATRows, 3);
+				newVATRows = randomlyModifiedVATRowSet(currentVATRows, 3);
 			
 			// Evaluate new candidate solution and keep it:
 			// a) with prob. 1 if it is better
 			// b) with prob. 0.005 if it is equally costly 
 			// c) with prob. exp(-delta E / T) if it is worse
 			
-			double energyNewSolution = (double)extendedVATCost(graph, modifNewVATRows, true) / denominatorEnergyForm;
+			double energyNewSolution = (double)vatExtensionCost(graph, newVATRows) / denominatorEnergyForm;
 			
 			if (energyNewSolution < energyCurrentSolution) {
-				newVATRows = modifNewVATRows;
+				currentVATRows = newVATRows;
 				energyCurrentSolution = energyNewSolution;
 				itersWithoutChangeCount = 0;
 				if (energyNewSolution < energyGloballyOptimalSolution) {
-					globallyOptimalNewVATRows = modifNewVATRows;
+					globallyOptimalNewVATRows = newVATRows;
 					energyGloballyOptimalSolution = energyNewSolution;
 				}
 			}
 			else if (energyNewSolution == energyCurrentSolution) {
 				if (random.nextDouble() < 0.05d) {   // Take equal energy solution with prob. 0.05
-					newVATRows = modifNewVATRows;
+					currentVATRows = newVATRows;
 					itersWithoutChangeCount = 0;
 				}
 				else
@@ -575,7 +916,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				// Accept a worse solution with prob. exp(-delta E / T)
 				double prob = Math.exp((double)(energyCurrentSolution - energyNewSolution) / temperature);
 				if (random.nextDouble() < prob) {
-					newVATRows = modifNewVATRows;
+					currentVATRows = newVATRows;
 					energyCurrentSolution = energyNewSolution;
 					acceptedWorseSolutions++;
 					itersWithoutChangeCount = 0;
@@ -604,124 +945,99 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		// The process stops when temperature is sufficiently low, a sufficient number of iterations are performed without changing
 		// system energy, or up to maxWorstSolRejections worse solutions are rejected without accepting none for some temperature
 		
-		// Add new entries to VAT
-		for (String rid : globallyOptimalNewVATRows.keySet())
-			globalVAT.put(rid, globallyOptimalNewVATRows.get(rid));
-		
+		return globallyOptimalNewVATRows;		
 	}
-	
-	/***
-	 * 
-	 * @param currentVATRowSet
-	 * @param changeType: 0 --> swap two elements in the same row
-	 *                    1 --> swap any two elements 
-	 *                    2 --> perform a number of type 0 modifications ranging from minChangeCount to 3 * minChangeCount,
-	 *                          where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
-	 *                    else: perform a number of type 1 modifications ranging from minChangeCount to 3 * minChangeCount,
-	 *                          where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
-	 */
-	
-	protected Map<String, List<String>> randomlyModifiedVATRowSet(Map<String, List<String>> currentVATRowSet, int changeType) {
 		
-		Map<String, List<String>> modifNewVATRows = cloneVATRowSet(currentVATRowSet);
-		SecureRandom random = new SecureRandom();
+	protected int vatExtensionCost(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> newVATRows) {
 		
-		if (changeType == 0 || changeType == 1) {
+		// First, simulate alignBlocks, restricted to edges incident in vertices in newVATRows, 
+		// to account for the editions that it would perform 
+		
+		List<String> newRowsKeys = new ArrayList<>(newVATRows.keySet());
+		List<String> currentVATKeys = new ArrayList<>(globalVAT.keySet());
+		
+		int costBlockAlignment = 0;
+		
+		for (int i = 0; i < newRowsKeys.size(); i++) {
 			
-			// Randomly select elements to swap
-			List<String> newVATKeys = new ArrayList<>(modifNewVATRows.keySet());
-			String swapKey1 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-			int swapOrd1 = random.nextInt(modifNewVATRows.get(swapKey1).size());
-			String swapKey2 = swapKey1;   // Initialization required, using swapKey1  
-			int swapOrd2;
-			if (changeType == 0) {   // A type 0 change will swap two elements on the same row
-				swapOrd2 = random.nextInt(modifNewVATRows.get(swapKey2).size());
-				while (swapOrd2 == swapOrd1)
-					swapOrd2 = random.nextInt(modifNewVATRows.get(swapKey2).size());
-			}
-			else {  // changeType == 1, swap two elements on different rows 
-				while (swapKey2.equals(swapKey1))
-					swapKey2 = newVATKeys.get(random.nextInt(newVATKeys.size()));
-				swapOrd2 = random.nextInt(modifNewVATRows.get(swapKey2).size());
-			}
+			// Edges among two vertices in newVATRows
 			
-			// Perform the swap
-			String tmp = modifNewVATRows.get(swapKey1).get(swapOrd1);
-			modifNewVATRows.get(swapKey1).set(swapOrd1, modifNewVATRows.get(swapKey2).get(swapOrd2));
-			modifNewVATRows.get(swapKey2).set(swapOrd2, tmp);
-			
-			// Update row keys if needed
-			if (swapOrd1 == 0 && swapOrd2 != 0) {
-				List<String> row1 = modifNewVATRows.get(swapKey1);
-				modifNewVATRows.remove(swapKey1);
-				modifNewVATRows.put(row1.get(0), row1);
-			}
-			else if (swapOrd1 != 0 && swapOrd2 == 0) {
-				List<String> row2 = modifNewVATRows.get(swapKey2);
-				modifNewVATRows.remove(swapKey2);
-				modifNewVATRows.put(row2.get(0), row2);
-			}
-			else if (swapOrd1 == 0 && swapOrd2 == 0) {
-				List<String> row1 = modifNewVATRows.get(swapKey1);
-				List<String> row2 = modifNewVATRows.get(swapKey2);
-				modifNewVATRows.remove(swapKey1);
-				modifNewVATRows.remove(swapKey2);
-				modifNewVATRows.put(row1.get(0), row1);
-				modifNewVATRows.put(row2.get(0), row2);
+			if (i < newRowsKeys.size() - 1) {
+				for (int j = i + 1; j < newRowsKeys.size(); j++) {
+					// Check if the edge exists in some block and doesn't exist in some other
+					boolean edgeFound = false, nonEdgeFound = false;
+					for (int c = 0; (!edgeFound || !nonEdgeFound) && c < commonK; c++) {
+						if (graph.containsVertex(newVATRows.get(newRowsKeys.get(i)).get(c)) && graph.containsVertex(newVATRows.get(newRowsKeys.get(j)).get(c)) 
+							&& graph.containsEdge(newVATRows.get(newRowsKeys.get(i)).get(c), newVATRows.get(newRowsKeys.get(j)).get(c)))
+							edgeFound = true;
+						if (!graph.containsVertex(newVATRows.get(newRowsKeys.get(i)).get(c)) || !graph.containsVertex(newVATRows.get(newRowsKeys.get(j)).get(c)) 
+							|| !graph.containsEdge(newVATRows.get(newRowsKeys.get(i)).get(c), newVATRows.get(newRowsKeys.get(j)).get(c)))
+							nonEdgeFound = true;
+					}
+					if (edgeFound && nonEdgeFound) {
+						for (int c = 0; c < commonK; c++)
+							if (!graph.containsVertex(newVATRows.get(newRowsKeys.get(i)).get(c))
+								|| !graph.containsVertex(newVATRows.get(newRowsKeys.get(j)).get(c))
+								|| !graph.containsEdge(newVATRows.get(newRowsKeys.get(i)).get(c), newVATRows.get(newRowsKeys.get(j)).get(c)))
+								costBlockAlignment++;
+					}
+				}
 			}
 			
+			// Edges between a vertex in newVATRows and a vertex in globalVAT
+			
+			for (int j = 0; j < currentVATKeys.size(); j++) {
+				// Check if the edge exists in some block and doesn't exist in some other
+				boolean edgeFound = false, nonEdgeFound = false;
+				for (int c = 0; (!edgeFound || !nonEdgeFound) && c < commonK; c++) {
+					if (graph.containsVertex(newVATRows.get(newRowsKeys.get(i)).get(c)) && graph.containsVertex(globalVAT.get(currentVATKeys.get(j)).get(c)) 
+						&& graph.containsEdge(newVATRows.get(newRowsKeys.get(i)).get(c), globalVAT.get(currentVATKeys.get(j)).get(c)))
+						edgeFound = true;
+					if (!graph.containsVertex(newVATRows.get(newRowsKeys.get(i)).get(c)) || !graph.containsVertex(globalVAT.get(currentVATKeys.get(j)).get(c)) 
+						|| !graph.containsEdge(newVATRows.get(newRowsKeys.get(i)).get(c), globalVAT.get(currentVATKeys.get(j)).get(c)))
+						nonEdgeFound = true;
+				}
+				if (edgeFound && nonEdgeFound) {
+					for (int c = 0; c < commonK; c++)
+						if (!graph.containsVertex(newVATRows.get(newRowsKeys.get(i)).get(c))
+							|| !graph.containsVertex(globalVAT.get(currentVATKeys.get(j)).get(c))
+							|| !graph.containsEdge(newVATRows.get(newRowsKeys.get(i)).get(c), globalVAT.get(currentVATKeys.get(j)).get(c)))
+							costBlockAlignment++;
+				}
+			}
 		}
-		else if (changeType == 2) {
+		
+		// Then, compute the contribution of crossing edge copy to the overall number of editions
+		
+		int costCrossingEdges = 0;
 			
-			// Perform a number of type 0 modifications ranging from minChangeCount to 3 * minChangeCount,   
-			// where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
-			int minChangeCount = (currentVATRowSet.size() * commonK) / 5;
-			int changeCount = minChangeCount + random.nextInt(2 * minChangeCount + 1);
-			for (int i = 0; i < changeCount; i++) 
-				modifNewVATRows = randomlyModifiedVATRowSet(modifNewVATRows, 0);
+		// Compute equivalent of vertexSetsXGlobalVATColumn for new VAT entries
+		
+		List<Set<String>> vertexSetsXColumNewVATRows = new ArrayList<>();
+		for (int i = 0; i < commonK; i++)
+			vertexSetsXColumNewVATRows.add(new TreeSet<String>());
+		for (String rowKey : newVATRows.keySet())
+			for (int i = 0; i < commonK; i++) {
+				String vCell = newVATRows.get(rowKey).get(i);
+				vertexSetsXColumNewVATRows.get(i).add(vCell);
+			}
+		
+		// Compute cost of necessary edge copies
+		
+		int sumCrossEdges = 0;
+		
+		for (int i = 0; i < commonK; i++) {
+			for (String v : vertexSetsXGlobalVATColumn.get(i)) {
+				Set<String> neighbours = new TreeSet<>(Graphs.neighborListOf(graph, v));
+				neighbours.removeAll(vertexSetsXGlobalVATColumn.get(i));
+				neighbours.removeAll(vertexSetsXColumNewVATRows.get(i));
+				sumCrossEdges += neighbours.size();
+			}
 		}
-		else {
-			
-			// Perform a number of type 1 modifications ranging from minChangeCount to 3 * minChangeCount,   
-			// where minChangeCount is one fifth of the number of vertices in the set of new VAT rows
-			int minChangeCount = (currentVATRowSet.size() * commonK) / 5;
-			int changeCount = minChangeCount + random.nextInt(2 * minChangeCount + 1);
-			for (int i = 0; i < changeCount; i++) 
-				modifNewVATRows = randomlyModifiedVATRowSet(modifNewVATRows, 1);
-		}
-				
-		return modifNewVATRows;
-	}
-	
-	/***
-	 *
-	 * This is a loose, efficiently computable upper bound to be used as the normalizing factor
-	 * for converting anonymization cost into energy in the simulated annealing VAT update method
-	 * Counting all neighborhoods as possible edges to copy, rather than just those in different
-	 * columns of the VAT, as done in computing the VAT-specific cost
-	 * 
-	 */
-	
-	protected int upperBoundCost(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> vatRowSet) {
 		
-		Set<String> vertsInVATRows = new TreeSet<>();
-		for (String key : vatRowSet.keySet())
-			for (String v : vatRowSet.get(key))
-				vertsInVATRows.add(v);
+		costCrossingEdges = ((commonK - 1) * sumCrossEdges) / 2;
 		
-		int upperBound = 0;
-		for (String v : vertsInVATRows) 
-			upperBound += (commonK - 1 ) * graph.degreeOf(v);
-		upperBound /= 2;
-		
-		return upperBound;
-	}
-	
-	protected int extendedVATCost(UndirectedGraph<String, DefaultEdge> graph, Map<String, List<String>> newVATRows, boolean countCrossingEdges) {
-		Map<String, List<String>> extendedVAT = new TreeMap<>(globalVAT); 
-		for (String rid : newVATRows.keySet())
-			extendedVAT.put(rid, newVATRows.get(rid));
-		return groupCost(graph, extendedVAT, countCrossingEdges);
+		return costBlockAlignment + costCrossingEdges;
 	}
 	
 	/***
@@ -732,7 +1048,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	
 	public static void main(String [] args) {
 		
-		timesExceptionOccurred = 0;
+		metisFailureCount = 0;
 		
 		for (int iter = 0; iter < 100; iter++) {
 			
@@ -829,7 +1145,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			System.out.println("");
 		}
 		
-		System.out.println(timesExceptionOccurred + " exceptions occurred");
+		System.out.println(metisFailureCount + " exceptions occurred");
 		System.out.println();
 		
 	}
