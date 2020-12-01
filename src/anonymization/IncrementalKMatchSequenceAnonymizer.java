@@ -25,6 +25,9 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	 * Declarations
 	 */
 	
+	protected boolean useMETIS;
+	protected String metisExecName;
+	protected String metisWorkDirName;
 	protected static int metisFailureCount = 0;
 	
 	protected int commonK = 2;
@@ -50,6 +53,18 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		commonK = k;
 		firstSnapshotAnonymized = false;
 		optimizationType = 0;   // No optimization
+		useMETIS = false;
+	}
+	
+	public IncrementalKMatchSequenceAnonymizer(int k, String eName, String wName) {
+		globalVAT = null;
+		vertexSetsXGlobalVATColumn = null;
+		commonK = k;
+		firstSnapshotAnonymized = false;
+		optimizationType = 0;   // No optimization
+		useMETIS = true;
+		metisExecName = eName;
+		metisWorkDirName = wName;
 	}
 	
 	public IncrementalKMatchSequenceAnonymizer(int k, int optType) {
@@ -58,6 +73,18 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		commonK = k;
 		firstSnapshotAnonymized = false;
 		optimizationType = optType;
+		useMETIS = false;
+	}
+	
+	public IncrementalKMatchSequenceAnonymizer(int k, int optType, String eName, String wName) {
+		globalVAT = null;
+		vertexSetsXGlobalVATColumn = null;
+		commonK = k;
+		firstSnapshotAnonymized = false;
+		optimizationType = optType;
+		useMETIS = true;
+		metisExecName = eName;
+		metisWorkDirName = wName;
 	}
 	
 	public void restart(int k) {
@@ -133,18 +160,19 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		
 		Map<String, Set<String>> partition = null;
 		
-		try {
-			
-			WrapperMETIS metisHandler = new WrapperMETIS();
-			partition = metisHandler.getPartitionVertSets(graph, commonK, uniqueIdFileName, false);
-			
-		} catch (IOException | InterruptedException | RuntimeException e) {
-			
-			metisFailureCount++;   // Just update, initialization and use up to the caller
-			
-			// Since some problem occurred in running METIS or handling its outputs, 
-			// the initial partition is obtained by decrementally sorting vertices 
-			// by degree and assigning each vertex to a partition using round-robin 			
+		boolean doRoundRobinPartition = !useMETIS;
+		
+		if (useMETIS) {
+			try {
+				WrapperMETIS metisHandler = new WrapperMETIS(metisExecName, metisWorkDirName);
+				partition = metisHandler.getPartitionVertSets(graph, commonK, uniqueIdFileName, false);	
+			} catch (IOException | InterruptedException | RuntimeException e) {
+				doRoundRobinPartition = true;
+				metisFailureCount++;   // Just update, initialization and use up to the caller
+			}
+		}
+		
+		if (doRoundRobinPartition) { 			
 			partition = new TreeMap<>();
 			for (int i = 0; i < commonK; i++)
 				partition.put(i + "", new TreeSet<String>());
@@ -1048,106 +1076,130 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	
 	public static void main(String [] args) {
 		
-		metisFailureCount = 0;
-		
-		for (int iter = 0; iter < 100; iter++) {
+		if (args.length == 2) {
 			
-			System.out.println("Iteration # " + iter);
+			metisFailureCount = 0;
 			
-			int[] ks = {2, 5, 8};
+			for (int iter = 0; iter < 100; iter++) {
+				
+				System.out.println("Iteration # " + iter);
+				
+				int[] ks = {2, 5, 8};
+				
+				// Create anonymizers for k \in ks
+				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersUsingMETIS = new TreeMap<>();
+				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersNotUsingMETIS = new TreeMap<>();
+				for (int k : ks) {
+					anonymizersUsingMETIS.put(k, new IncrementalKMatchSequenceAnonymizer(k, 2, args[0], args[1]));
+					anonymizersNotUsingMETIS.put(k, new IncrementalKMatchSequenceAnonymizer(k, 2));
+				}
+				
+				System.out.println("First snapshot");
+				
+				UndirectedGraph<String, DefaultEdge> graph = BarabasiAlbertGraphGenerator.newGraph(200, 0, 50, 5, 3);
+					
+				int origEdgeCount = graph.edgeSet().size(), origVertexCount = graph.vertexSet().size();
 			
-			// Create anonymizers for k \in ks
-			Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizers = new TreeMap<>();
-			for (int k : ks) 
-				anonymizers.put(k, new IncrementalKMatchSequenceAnonymizer(k, 2));
-			
-			System.out.println("First snapshot");
-			
-			UndirectedGraph<String, DefaultEdge> graph = BarabasiAlbertGraphGenerator.newGraph(200, 0, 50, 5, 3);
+				// Apply the method with k \in ks
+				for (int k : ks) {
+					
+					System.out.println("k = " + k);
+					
+					//System.out.println("\tCopying crossing edges:");
+					
+					UndirectedGraph<String, DefaultEdge> cloneMETIS = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETIS = GraphUtil.cloneGraph(graph);
+					
+					anonymizersUsingMETIS.get(k).anonymizeGraph(cloneMETIS, false, "TesterCopying");
+					anonymizersNotUsingMETIS.get(k).anonymizeGraph(cloneNotMETIS, false, "TesterCopying");
+					
+					// Report effect of anonymization on the graph
+					System.out.println("\t\tOriginal vertex count: " + origVertexCount);
+					System.out.println("\t\tFinal vertex count using METIS: " + cloneMETIS.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS: " + cloneNotMETIS.vertexSet().size());
+					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneNotMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+					System.out.println("\t\tOriginal edge count: " + origEdgeCount);
+					System.out.println("\t\tFinal edge count using METIS: " + cloneMETIS.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS: " + cloneNotMETIS.edgeSet().size());
+					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneNotMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+					
+				}
 				
-			int origEdgeCount = graph.edgeSet().size(), origVertexCount = graph.vertexSet().size();
-		
-			// Apply the method with k \in ks
-			for (int k : ks) {
+				System.out.println("");
 				
-				System.out.println("k = " + k);
+				System.out.println("Second snapshot");
 				
-				//System.out.println("\tCopying crossing edges:");
+				graph = BarabasiAlbertGraphGenerator.newGraph(225, 0, (SimpleGraph<String, DefaultEdge>)graph, 5);
 				
-				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
+				origEdgeCount = graph.edgeSet().size(); 
+				origVertexCount = graph.vertexSet().size();
 				
-				anonymizers.get(k).anonymizeGraph(clone, false, "TesterCopying");
+				// Apply the method with k \in ks
+				for (int k : ks) {
+					
+					System.out.println("k = " + k);
+					
+					UndirectedGraph<String, DefaultEdge> cloneMETIS = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETIS = GraphUtil.cloneGraph(graph);
+					
+					anonymizersUsingMETIS.get(k).anonymizeGraph(cloneMETIS, false, "TesterCopying");
+					anonymizersNotUsingMETIS.get(k).anonymizeGraph(cloneNotMETIS, false, "TesterCopying");
+					
+					// Report effect of anonymization on the graph
+					System.out.println("\t\tOriginal vertex count: " + origVertexCount);
+					System.out.println("\t\tFinal vertex count using METIS: " + cloneMETIS.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS: " + cloneNotMETIS.vertexSet().size());
+					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneNotMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+					System.out.println("\t\tOriginal edge count: " + origEdgeCount);
+					System.out.println("\t\tFinal edge count using METIS: " + cloneMETIS.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS: " + cloneNotMETIS.edgeSet().size());
+					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneNotMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+				}
 				
-				// Report effect of anonymization on the graph
-				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
-				System.out.println("\t\tFinal vertex count: " + clone.vertexSet().size());
-				System.out.println("\t\tDelta: " + (clone.vertexSet().size() - origVertexCount) + " (" + ((double)(clone.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
-				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
-				System.out.println("\t\tFinal edge count: " + clone.edgeSet().size());
-				System.out.println("\t\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+				System.out.println("");
+							
+				System.out.println("Third snapshot");
 				
+				graph = BarabasiAlbertGraphGenerator.newGraph(250, 0, (SimpleGraph<String, DefaultEdge>)graph, 5);
+				
+				origEdgeCount = graph.edgeSet().size(); 
+				origVertexCount = graph.vertexSet().size();
+				
+				// Apply the method with k \in ks
+				for (int k : ks) {
+					
+					System.out.println("k = " + k);
+					
+					UndirectedGraph<String, DefaultEdge> cloneMETIS = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETIS = GraphUtil.cloneGraph(graph);
+					
+					anonymizersUsingMETIS.get(k).anonymizeGraph(cloneMETIS, false, "TesterCopying");
+					anonymizersNotUsingMETIS.get(k).anonymizeGraph(cloneNotMETIS, false, "TesterCopying");
+					
+					// Report effect of anonymization on the graph
+					System.out.println("\t\tOriginal vertex count: " + origVertexCount);
+					System.out.println("\t\tFinal vertex count using METIS: " + cloneMETIS.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS: " + cloneNotMETIS.vertexSet().size());
+					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneNotMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+					System.out.println("\t\tOriginal edge count: " + origEdgeCount);
+					System.out.println("\t\tFinal edge count using METIS: " + cloneMETIS.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS: " + cloneNotMETIS.edgeSet().size());
+					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneNotMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+				}
+				
+				System.out.println("");
 			}
 			
-			System.out.println("");
+			System.out.println("METIS failed " + metisFailureCount + " times");
+			System.out.println();
 			
-			System.out.println("Second snapshot");
-			
-			graph = BarabasiAlbertGraphGenerator.newGraph(225, 0, (SimpleGraph<String, DefaultEdge>)graph, 5);
-			
-			origEdgeCount = graph.edgeSet().size(); 
-			origVertexCount = graph.vertexSet().size();
-			
-			// Apply the method with k \in ks
-			for (int k : ks) {
-				
-				System.out.println("k = " + k);
-				
-				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
-				
-				anonymizers.get(k).anonymizeGraph(clone, false, "TesterCopying");
-				
-				// Report effect of anonymization on the graph
-				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
-				System.out.println("\t\tFinal vertex count: " + clone.vertexSet().size());
-				System.out.println("\t\tDelta: " + (clone.vertexSet().size() - origVertexCount) + " (" + ((double)(clone.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
-				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
-				System.out.println("\t\tFinal edge count: " + clone.edgeSet().size());
-				System.out.println("\t\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
-			}
-			
-			System.out.println("");
-						
-			System.out.println("Third snapshot");
-			
-			graph = BarabasiAlbertGraphGenerator.newGraph(250, 0, (SimpleGraph<String, DefaultEdge>)graph, 5);
-			
-			origEdgeCount = graph.edgeSet().size(); 
-			origVertexCount = graph.vertexSet().size();
-			
-			// Apply the method with k \in ks
-			for (int k : ks) {
-				
-				System.out.println("k = " + k);
-				
-				UndirectedGraph<String, DefaultEdge> clone = GraphUtil.cloneGraph(graph);
-				
-				anonymizers.get(k).anonymizeGraph(clone, false, "TesterCopying");
-				
-				// Report effect of anonymization on the graph
-				System.out.println("\t\tOriginal vertex count: " + origVertexCount);
-				System.out.println("\t\tFinal vertex count: " + clone.vertexSet().size());
-				System.out.println("\t\tDelta: " + (clone.vertexSet().size() - origVertexCount) + " (" + ((double)(clone.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
-				System.out.println("\t\tOriginal edge count: " + origEdgeCount);
-				System.out.println("\t\tFinal edge count: " + clone.edgeSet().size());
-				System.out.println("\t\tDelta: " + (clone.edgeSet().size() - origEdgeCount) + " (" + ((double)(clone.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
-			}
-			
-			System.out.println("");
 		}
-		
-		System.out.println(metisFailureCount + " exceptions occurred");
-		System.out.println();
-		
 	}
 	
 }

@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -19,18 +18,12 @@ import org.jgrapht.graph.DefaultEdge;
 
 public class WrapperMETIS {
 	
-	String pathName;
 	String executableName;
+	String workDirName;
 
-	public WrapperMETIS() {
-		if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).indexOf("win") >= 0) {   // Running on Windows
-			pathName = "C:\\cygwin64\\home\\yunior.ramirez\\metis-5.1.0\\graphs";
-			executableName = "C:\\cygwin64\\usr\\local\\bin\\gpmetis.exe";
-		}
-		else {   // Currently, "not running on Windows" equals "running on Linux"
-			pathName = "/home/users/yramirezcruz/metis-5.1.0/graphs";
-			executableName = "/home/users/yramirezcruz/bin/gpmetis";
-		}
+	public WrapperMETIS(String eName, String wName) {
+		executableName = eName;
+		workDirName = wName;
 	}
 	
 	public List<UndirectedGraph<String, DefaultEdge>> getPartitionSubgraphs(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName, boolean weightedVertices) throws IOException, InterruptedException {
@@ -41,7 +34,7 @@ public class WrapperMETIS {
 		runMETIS(graph, k, uniqueIdFileName, weightedVertices, vertIdOffset);
 		
 		// Load output
-		Map<String, Set<String>> vertsXPart = loadOutputFromFile(pathName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		Map<String, Set<String>> vertsXPart = loadOutputFromFile(workDirName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
 		
 		// Build partition subgraphs
 		List<UndirectedGraph<String, DefaultEdge>> partitions = new ArrayList<>();
@@ -59,7 +52,7 @@ public class WrapperMETIS {
 		runMETIS(graph, k, uniqueIdFileName, weightedVertices, vertIdOffset);
 				
 		// Load output
-		Map<String, Set<String>> vertsXPart = loadOutputFromFile(pathName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
+		Map<String, Set<String>> vertsXPart = loadOutputFromFile(workDirName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt.part." + k, startingVertId);
 		
 		return vertsXPart;
 	}
@@ -67,11 +60,11 @@ public class WrapperMETIS {
 	protected void runMETIS(UndirectedGraph<String, DefaultEdge> graph, int k, String uniqueIdFileName, boolean weightedVertices, int vertIdOffset) throws IOException, InterruptedException {
 		
 		// Generate input
-		generateInputFile(graph, pathName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt", weightedVertices, vertIdOffset);
+		generateInputFile(graph, workDirName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt", weightedVertices, vertIdOffset);
 		
 		// Run METIS
 		Runtime rt = Runtime.getRuntime();
-		String command = executableName + " " + pathName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt " + k;
+		String command = executableName + " " + workDirName + java.io.File.separator + "workingGraph-" + uniqueIdFileName + ".txt " + k;
 		Process proc = rt.exec(command);
 		proc.waitFor();
 		int exitVal = proc.exitValue();
