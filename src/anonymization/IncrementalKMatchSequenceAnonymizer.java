@@ -34,6 +34,8 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 	
 	protected boolean firstSnapshotAnonymized = false;
 	
+	protected boolean optFoundImprov = false;
+	
 	/*** 
 	 * optimizationType == 0: no optimzation
 	 * optimizationType == 1: randomized local search
@@ -54,6 +56,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		firstSnapshotAnonymized = false;
 		optimizationType = 0;   // No optimization
 		useMETIS = false;
+		optFoundImprov = false;
 	}
 	
 	public IncrementalKMatchSequenceAnonymizer(int k, String eName, String wName) {
@@ -65,6 +68,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		useMETIS = true;
 		metisExecName = eName;
 		metisWorkDirName = wName;
+		optFoundImprov = false;
 	}
 	
 	public IncrementalKMatchSequenceAnonymizer(int k, int optType) {
@@ -74,6 +78,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		firstSnapshotAnonymized = false;
 		optimizationType = optType;
 		useMETIS = false;
+		optFoundImprov = false;
 	}
 	
 	public IncrementalKMatchSequenceAnonymizer(int k, int optType, String eName, String wName) {
@@ -85,6 +90,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		useMETIS = true;
 		metisExecName = eName;
 		metisWorkDirName = wName;
+		optFoundImprov = false;
 	}
 	
 	public void restart(int k) {
@@ -92,6 +98,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		globalVAT = null;
 		vertexSetsXGlobalVATColumn = null;
 		firstSnapshotAnonymized = false;
+		optFoundImprov = false;
 	}
 
 	@Override
@@ -120,12 +127,18 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		anonymizeGraph(graph, randomize, "DefaultNameServiceFileIncrementalKMatchAnonymizerUsingMETIS");
 	}
 	
+	public boolean optimizationFoundImprovement() {
+		return optFoundImprov;
+	}
+	
 	/***
 	 * Methods for anonymizing the first snapshot (first ever or first after a call of restart())
 	 */
 	
 	protected void anonymizeFirstSnapshot(UndirectedGraph<String, DefaultEdge> graph, boolean randomize, String uniqueIdFileName) {
 		// The static version adds dummy vertices, the dynamic one will not
+		
+		optFoundImprov = false;
 		
 		SecureRandom random = new SecureRandom();
 		
@@ -186,7 +199,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		if (optimizationType == 1)
 			optimizeGlobalVATRandLocalSearch(graph, 10, 1000, 500);
 		else if (optimizationType == 2)
-			optimizeGlobalVATSimulatedAnnealing(graph, 10000, 5000, 2500, 50, 0.005d, 0.000001d, 0.95d, 500);
+			optimizeGlobalVATSimulatedAnnealing(graph, 10000, 5000, 5000, 100, 0.005d, 0.000001d, 0.95d, 500);
 		alignBlocks(graph, globalVAT);
 		if (randomized)
 			randomlyUniformizeCrossingEdges(graph);
@@ -233,9 +246,8 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			int indRandBlockMissingVerts = random.nextInt(blocksMissingVertices.size());
 			String randBlockMissingVerts = blocksMissingVertices.get(indRandBlockMissingVerts);
 			partition.get(randBlockMissingVerts).add(vertToSwitch);
-			if (partition.get(randBlockMissingVerts).size() == graph.vertexSet().size() / commonK) {
+			if (partition.get(randBlockMissingVerts).size() == graph.vertexSet().size() / commonK)
 				blocksMissingVertices.remove(indRandBlockMissingVerts);
-			}
 		}
 		
 		// Rebuilding blocks-as-subgraphs structure used in KMatchAnonymizerUsingMETIS 
@@ -430,6 +442,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			if (currentCost < costGloballyOptimalSolution) {
 				globallyOptimalNewVAT = cloneVATRowSet(currentVAT);
 				costGloballyOptimalSolution = currentCost;
+				optFoundImprov = true;
 			}
 			
 			// Run local search
@@ -450,6 +463,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 					if (newCost < costGloballyOptimalSolution) {
 						costGloballyOptimalSolution = newCost;
 						globallyOptimalNewVAT = newVAT;
+						optFoundImprov = true;
 					}
 				}
 				else if (++nonImprovIterCount >= maxItersNoImprov)
@@ -535,6 +549,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				if (energyNewSolution < energyGloballyOptimalSolution) {
 					globallyOptimalNewVATRows = newVAT;
 					energyGloballyOptimalSolution = energyNewSolution;
+					optFoundImprov = true;
 				}
 			}
 			else if (energyNewSolution == energyCurrentSolution) {
@@ -732,6 +747,8 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 		
 		if (firstSnapshotAnonymized) {
 			
+			optFoundImprov = false;
+			
 			SecureRandom random = new SecureRandom();
 			
 			// Note: vertices not included in previous snapshots that no longer exist in this snapshot
@@ -791,7 +808,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			else if (optimizationType == 1)
 				extendVAT(optimizedVATRowsRandLocalSearch(graph, newVATRowsRoundRobin(graph, untabulatedVertices), 10, 1000, 500));
 			else
-				extendVAT(optimizedVATRowsSimulatedAnnealing(graph, newVATRowsRoundRobin(graph, untabulatedVertices), 10000, 5000, 2500, 50, 0.005d, 0.000001d, 0.95d, 500));
+				extendVAT(optimizedVATRowsSimulatedAnnealing(graph, newVATRowsRoundRobin(graph, untabulatedVertices), 10000, 5000, 5000, 100, 0.005d, 0.000001d, 0.95d, 500));
 			alignBlocks(graph, globalVAT);
 			if (randomize)
 				randomlyUniformizeCrossingEdges(graph);
@@ -841,6 +858,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			if (currentCost < costGloballyOptimalSolution) {
 				globallyOptimalNewVATRows = cloneVATRowSet(currentVATRows);
 				costGloballyOptimalSolution = currentCost;
+				optFoundImprov = true;
 			}
 			
 			// Run local search
@@ -861,6 +879,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 					if (newCost < costGloballyOptimalSolution) {
 						costGloballyOptimalSolution = newCost;
 						globallyOptimalNewVATRows = newVATRows;
+						optFoundImprov = true;
 					}
 				}
 				else if (++nonImprovIterCount >= maxItersNoImprov)
@@ -930,6 +949,7 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				if (energyNewSolution < energyGloballyOptimalSolution) {
 					globallyOptimalNewVATRows = newVATRows;
 					energyGloballyOptimalSolution = energyNewSolution;
+					optFoundImprov = true;
 				}
 			}
 			else if (energyNewSolution == energyCurrentSolution) {
@@ -1080,18 +1100,78 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 			
 			metisFailureCount = 0;
 			
-			for (int iter = 0; iter < 100; iter++) {
+			int[] ks = {2, 5, 8};
+			
+			Map<Integer, Map<Integer, Integer>> timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesNoOptStriclyBetterThanSimAnnealingUsingMETIS = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS = new TreeMap<>();
+					
+			Map<Integer, Map<Integer, Integer>> timesMETISNoOptWasBest = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesNotMETISNoOptWasBest = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesMETISRandLocalSearchWasBest = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesNotMETISRandLocalSearchWasBest = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesMETISSimAnnealingWasBest = new TreeMap<>();
+			Map<Integer, Map<Integer, Integer>> timesNotMETISSimAnnealingWasBest = new TreeMap<>();
+			
+			int[] snapshots = {1, 2, 3};
+			for (int ss : snapshots) {
+				
+				timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.put(ss, new TreeMap<Integer, Integer>());
+				timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.put(ss, new TreeMap<Integer, Integer>());
+				timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.put(ss, new TreeMap<Integer, Integer>());
+				timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.put(ss, new TreeMap<Integer, Integer>());
+				timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.put(ss, new TreeMap<Integer, Integer>());
+				timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.put(ss, new TreeMap<Integer, Integer>());
+				
+				timesMETISNoOptWasBest.put(ss, new TreeMap<Integer, Integer>());
+				timesNotMETISNoOptWasBest.put(ss, new TreeMap<Integer, Integer>());
+				timesMETISRandLocalSearchWasBest.put(ss, new TreeMap<Integer, Integer>());
+				timesNotMETISRandLocalSearchWasBest.put(ss, new TreeMap<Integer, Integer>());
+				timesMETISSimAnnealingWasBest.put(ss, new TreeMap<Integer, Integer>());
+				timesNotMETISSimAnnealingWasBest.put(ss, new TreeMap<Integer, Integer>());
+				
+				for (int k : ks) {
+					
+					timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(ss).put(k, 0);
+					timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(ss).put(k, 0);
+					timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(ss).put(k, 0);
+					timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(ss).put(k, 0);
+					timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(ss).put(k, 0);
+					timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(ss).put(k, 0);
+					
+					timesMETISNoOptWasBest.get(ss).put(k, 0);
+					timesNotMETISNoOptWasBest.get(ss).put(k, 0);
+					timesMETISRandLocalSearchWasBest.get(ss).put(k, 0);
+					timesNotMETISRandLocalSearchWasBest.get(ss).put(k, 0);
+					timesMETISSimAnnealingWasBest.get(ss).put(k, 0);
+					timesNotMETISSimAnnealingWasBest.get(ss).put(k, 0);
+				
+				}
+			}
+			
+			int maxIterCount = 100;
+			
+			for (int iter = 0; iter < maxIterCount; iter++) {
 				
 				System.out.println("Iteration # " + iter);
 				
-				int[] ks = {2, 5, 8};
-				
 				// Create anonymizers for k \in ks
-				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersUsingMETIS = new TreeMap<>();
-				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersNotUsingMETIS = new TreeMap<>();
+				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersUsingMETISNoOptimization = new TreeMap<>();
+				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersNotUsingMETISNoOptimization = new TreeMap<>();
+				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersUsingMETISRandLocalSearch = new TreeMap<>();
+				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersNotUsingMETISRandLocalSearch = new TreeMap<>();
+				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersUsingMETISSimAnnealing = new TreeMap<>();
+				Map<Integer, IncrementalKMatchSequenceAnonymizer> anonymizersNotUsingMETISSimAnnealing = new TreeMap<>();
 				for (int k : ks) {
-					anonymizersUsingMETIS.put(k, new IncrementalKMatchSequenceAnonymizer(k, 2, args[0], args[1]));
-					anonymizersNotUsingMETIS.put(k, new IncrementalKMatchSequenceAnonymizer(k, 2));
+					anonymizersUsingMETISNoOptimization.put(k, new IncrementalKMatchSequenceAnonymizer(k, 0, args[0], args[1]));
+					anonymizersNotUsingMETISNoOptimization.put(k, new IncrementalKMatchSequenceAnonymizer(k, 0));
+					anonymizersUsingMETISRandLocalSearch.put(k, new IncrementalKMatchSequenceAnonymizer(k, 1, args[0], args[1]));
+					anonymizersNotUsingMETISRandLocalSearch.put(k, new IncrementalKMatchSequenceAnonymizer(k, 1));
+					anonymizersUsingMETISSimAnnealing.put(k, new IncrementalKMatchSequenceAnonymizer(k, 2, args[0], args[1]));
+					anonymizersNotUsingMETISSimAnnealing.put(k, new IncrementalKMatchSequenceAnonymizer(k, 2));
 				}
 				
 				System.out.println("First snapshot");
@@ -1103,27 +1183,88 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				// Apply the method with k \in ks
 				for (int k : ks) {
 					
-					System.out.println("k = " + k);
+					System.out.println("\tk = " + k);
 					
 					//System.out.println("\tCopying crossing edges:");
 					
-					UndirectedGraph<String, DefaultEdge> cloneMETIS = GraphUtil.cloneGraph(graph);
-					UndirectedGraph<String, DefaultEdge> cloneNotMETIS = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneMETISNoOpt = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETISNoOpt = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneMETISRandLocalSearch = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETISRandLocalSearch = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneMETISSimAnnealing = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETISSimAnnealing = GraphUtil.cloneGraph(graph);
 					
-					anonymizersUsingMETIS.get(k).anonymizeGraph(cloneMETIS, false, "TesterCopying");
-					anonymizersNotUsingMETIS.get(k).anonymizeGraph(cloneNotMETIS, false, "TesterCopying");
+					anonymizersUsingMETISNoOptimization.get(k).anonymizeGraph(cloneMETISNoOpt, false, "TesterMETISNoOpt");
+					anonymizersNotUsingMETISNoOptimization.get(k).anonymizeGraph(cloneNotMETISNoOpt, false, "TesterNoMETISNoOpt");
+					anonymizersUsingMETISRandLocalSearch.get(k).anonymizeGraph(cloneMETISRandLocalSearch, false, "TesterMETISRandLocalSearch");
+					anonymizersNotUsingMETISRandLocalSearch.get(k).anonymizeGraph(cloneNotMETISRandLocalSearch, false, "TesterNoMETISRandLocalSearch");
+					anonymizersUsingMETISSimAnnealing.get(k).anonymizeGraph(cloneMETISSimAnnealing, false, "TesterMETISSimAnnealing");
+					anonymizersNotUsingMETISSimAnnealing.get(k).anonymizeGraph(cloneNotMETISSimAnnealing, false, "TesterNoMETISSimAnnealing");
 					
 					// Report effect of anonymization on the graph
 					System.out.println("\t\tOriginal vertex count: " + origVertexCount);
-					System.out.println("\t\tFinal vertex count using METIS: " + cloneMETIS.vertexSet().size());
-					System.out.println("\t\tFinal vertex count not using METIS: " + cloneNotMETIS.vertexSet().size());
-					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
-					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneNotMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+					System.out.println("\t\tFinal vertex count using METIS, no optimization: " + cloneMETISNoOpt.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS, no optimization: " + cloneNotMETISNoOpt.vertexSet().size());
+					System.out.println("\t\tFinal vertex count using METIS, randomized local search: " + cloneMETISRandLocalSearch.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS, randomized local search: " + cloneNotMETISRandLocalSearch.vertexSet().size());
+					System.out.println("\t\tFinal vertex count using METIS, simulated annealing: " + cloneMETISSimAnnealing.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS, simulated annealing: " + cloneNotMETISSimAnnealing.vertexSet().size());
 					System.out.println("\t\tOriginal edge count: " + origEdgeCount);
-					System.out.println("\t\tFinal edge count using METIS: " + cloneMETIS.edgeSet().size());
-					System.out.println("\t\tFinal edge count not using METIS: " + cloneNotMETIS.edgeSet().size());
-					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
-					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneNotMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+					System.out.println("\t\tFinal edge count using METIS, no optimization: " + cloneMETISNoOpt.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS, no optimization: " + cloneNotMETISNoOpt.edgeSet().size());
+					System.out.println("\t\tFinal edge count using METIS, randomized local search: " + cloneMETISRandLocalSearch.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS, randomized local search: " + cloneNotMETISRandLocalSearch.edgeSet().size());
+					System.out.println("\t\tFinal edge count using METIS, simulated annealing: " + cloneMETISSimAnnealing.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS, simulated annealing: " + cloneNotMETISSimAnnealing.edgeSet().size());
+					int deltaEdgeMETISNoOpt = cloneMETISNoOpt.edgeSet().size() - origEdgeCount;
+					int minDeltaEdge = deltaEdgeMETISNoOpt;
+					System.out.println("\t\tDelta using METIS, no optimization: " + deltaEdgeMETISNoOpt + " (" + ((double)deltaEdgeMETISNoOpt * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeNotMETISNoOpt = cloneNotMETISNoOpt.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeNotMETISNoOpt < minDeltaEdge)
+						minDeltaEdge = deltaEdgeNotMETISNoOpt;
+					System.out.println("\t\tDelta not using METIS, no optimization: " + deltaEdgeNotMETISNoOpt + " (" + ((double)deltaEdgeNotMETISNoOpt * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeMETISRandLocalSearch = cloneMETISRandLocalSearch.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeMETISRandLocalSearch < minDeltaEdge)
+						minDeltaEdge = deltaEdgeMETISRandLocalSearch;
+					System.out.println("\t\tDelta using METIS, randomized local search: " + deltaEdgeMETISRandLocalSearch + " (" + ((double)deltaEdgeMETISRandLocalSearch * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeNotMETISRandLocalSearch = cloneNotMETISRandLocalSearch.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeNotMETISRandLocalSearch < minDeltaEdge)
+						minDeltaEdge = deltaEdgeNotMETISRandLocalSearch;
+					System.out.println("\t\tDelta not using METIS, randomized local search: " + deltaEdgeNotMETISRandLocalSearch + " (" + ((double)deltaEdgeNotMETISRandLocalSearch * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeMETISSimAnnealing = cloneMETISSimAnnealing.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeMETISSimAnnealing < minDeltaEdge)
+						minDeltaEdge = deltaEdgeMETISSimAnnealing;
+					System.out.println("\t\tDelta using METIS, simulated annealing: " + deltaEdgeMETISSimAnnealing + " (" + ((double)deltaEdgeMETISSimAnnealing * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeNotMETISSimAnnealing = cloneNotMETISSimAnnealing.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeNotMETISSimAnnealing < minDeltaEdge)
+						minDeltaEdge = deltaEdgeNotMETISSimAnnealing;
+					System.out.println("\t\tDelta not using METIS, simulated annealing: " + deltaEdgeNotMETISSimAnnealing + " (" + ((double)deltaEdgeNotMETISSimAnnealing * 100d / (double)origEdgeCount) + "%)");
+					
+					if (deltaEdgeMETISNoOpt == minDeltaEdge)
+						timesMETISNoOptWasBest.get(1).put(k, timesMETISNoOptWasBest.get(1).get(k) + 1);
+					if (deltaEdgeNotMETISNoOpt == minDeltaEdge)
+						timesNotMETISNoOptWasBest.get(1).put(k, timesNotMETISNoOptWasBest.get(1).get(k) + 1);
+					if (deltaEdgeMETISRandLocalSearch == minDeltaEdge)
+						timesMETISRandLocalSearchWasBest.get(1).put(k, timesMETISRandLocalSearchWasBest.get(1).get(k) + 1);
+					if (deltaEdgeNotMETISRandLocalSearch == minDeltaEdge)
+						timesNotMETISRandLocalSearchWasBest.get(1).put(k, timesNotMETISRandLocalSearchWasBest.get(1).get(k) + 1);
+					if (deltaEdgeMETISSimAnnealing == minDeltaEdge)
+						timesMETISSimAnnealingWasBest.get(1).put(k, timesMETISSimAnnealingWasBest.get(1).get(k) + 1);
+					if (deltaEdgeNotMETISSimAnnealing == minDeltaEdge)
+						timesNotMETISSimAnnealingWasBest.get(1).put(k, timesNotMETISSimAnnealingWasBest.get(1).get(k) + 1);
+					
+					if (deltaEdgeMETISNoOpt < deltaEdgeMETISRandLocalSearch)
+						timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(1).put(k, timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(1).get(k) + 1);
+					if (deltaEdgeNotMETISNoOpt < deltaEdgeNotMETISRandLocalSearch)
+						timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(1).put(k, timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(1).get(k) + 1);
+					if (deltaEdgeMETISNoOpt < deltaEdgeMETISSimAnnealing)
+						timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(1).put(k, timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(1).get(k) + 1);
+					if (deltaEdgeNotMETISNoOpt < deltaEdgeNotMETISSimAnnealing)
+						timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(1).put(k, timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(1).get(k) + 1);
+					if (deltaEdgeMETISRandLocalSearch < deltaEdgeMETISSimAnnealing)
+						timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(1).put(k, timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(1).get(k) + 1);
+					if (deltaEdgeNotMETISRandLocalSearch < deltaEdgeNotMETISSimAnnealing)
+						timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(1).put(k, timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(1).get(k) + 1);
 					
 				}
 				
@@ -1139,25 +1280,87 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				// Apply the method with k \in ks
 				for (int k : ks) {
 					
-					System.out.println("k = " + k);
+					System.out.println("\tk = " + k);
 					
-					UndirectedGraph<String, DefaultEdge> cloneMETIS = GraphUtil.cloneGraph(graph);
-					UndirectedGraph<String, DefaultEdge> cloneNotMETIS = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneMETISNoOpt = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETISNoOpt = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneMETISRandLocalSearch = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETISRandLocalSearch = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneMETISSimAnnealing = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETISSimAnnealing = GraphUtil.cloneGraph(graph);
 					
-					anonymizersUsingMETIS.get(k).anonymizeGraph(cloneMETIS, false, "TesterCopying");
-					anonymizersNotUsingMETIS.get(k).anonymizeGraph(cloneNotMETIS, false, "TesterCopying");
+					anonymizersUsingMETISNoOptimization.get(k).anonymizeGraph(cloneMETISNoOpt, false, "TesterMETISNoOpt");
+					anonymizersNotUsingMETISNoOptimization.get(k).anonymizeGraph(cloneNotMETISNoOpt, false, "TesterNoMETISNoOpt");
+					anonymizersUsingMETISRandLocalSearch.get(k).anonymizeGraph(cloneMETISRandLocalSearch, false, "TesterMETISRandLocalSearch");
+					anonymizersNotUsingMETISRandLocalSearch.get(k).anonymizeGraph(cloneNotMETISRandLocalSearch, false, "TesterNoMETISRandLocalSearch");
+					anonymizersUsingMETISSimAnnealing.get(k).anonymizeGraph(cloneMETISSimAnnealing, false, "TesterMETISSimAnnealing");
+					anonymizersNotUsingMETISSimAnnealing.get(k).anonymizeGraph(cloneNotMETISSimAnnealing, false, "TesterNoMETISSimAnnealing");
 					
 					// Report effect of anonymization on the graph
 					System.out.println("\t\tOriginal vertex count: " + origVertexCount);
-					System.out.println("\t\tFinal vertex count using METIS: " + cloneMETIS.vertexSet().size());
-					System.out.println("\t\tFinal vertex count not using METIS: " + cloneNotMETIS.vertexSet().size());
-					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
-					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneNotMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+					System.out.println("\t\tFinal vertex count using METIS, no optimization: " + cloneMETISNoOpt.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS, no optimization: " + cloneNotMETISNoOpt.vertexSet().size());
+					System.out.println("\t\tFinal vertex count using METIS, randomized local search: " + cloneMETISRandLocalSearch.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS, randomized local search: " + cloneNotMETISRandLocalSearch.vertexSet().size());
+					System.out.println("\t\tFinal vertex count using METIS, simulated annealing: " + cloneMETISSimAnnealing.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS, simulated annealing: " + cloneNotMETISSimAnnealing.vertexSet().size());
 					System.out.println("\t\tOriginal edge count: " + origEdgeCount);
-					System.out.println("\t\tFinal edge count using METIS: " + cloneMETIS.edgeSet().size());
-					System.out.println("\t\tFinal edge count not using METIS: " + cloneNotMETIS.edgeSet().size());
-					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
-					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneNotMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+					System.out.println("\t\tFinal edge count using METIS, no optimization: " + cloneMETISNoOpt.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS, no optimization: " + cloneNotMETISNoOpt.edgeSet().size());
+					System.out.println("\t\tFinal edge count using METIS, randomized local search: " + cloneMETISRandLocalSearch.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS, randomized local search: " + cloneNotMETISRandLocalSearch.edgeSet().size());
+					System.out.println("\t\tFinal edge count using METIS, simulated annealing: " + cloneMETISSimAnnealing.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS, simulated annealing: " + cloneNotMETISSimAnnealing.edgeSet().size());
+					int deltaEdgeMETISNoOpt = cloneMETISNoOpt.edgeSet().size() - origEdgeCount;
+					int minDeltaEdge = deltaEdgeMETISNoOpt;
+					System.out.println("\t\tDelta using METIS, no optimization: " + deltaEdgeMETISNoOpt + " (" + ((double)deltaEdgeMETISNoOpt * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeNotMETISNoOpt = cloneNotMETISNoOpt.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeNotMETISNoOpt < minDeltaEdge)
+						minDeltaEdge = deltaEdgeNotMETISNoOpt;
+					System.out.println("\t\tDelta not using METIS, no optimization: " + deltaEdgeNotMETISNoOpt + " (" + ((double)deltaEdgeNotMETISNoOpt * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeMETISRandLocalSearch = cloneMETISRandLocalSearch.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeMETISRandLocalSearch < minDeltaEdge)
+						minDeltaEdge = deltaEdgeMETISRandLocalSearch;
+					System.out.println("\t\tDelta using METIS, randomized local search: " + deltaEdgeMETISRandLocalSearch + " (" + ((double)deltaEdgeMETISRandLocalSearch * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeNotMETISRandLocalSearch = cloneNotMETISRandLocalSearch.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeNotMETISRandLocalSearch < minDeltaEdge)
+						minDeltaEdge = deltaEdgeNotMETISRandLocalSearch;
+					System.out.println("\t\tDelta not using METIS, randomized local search: " + deltaEdgeNotMETISRandLocalSearch + " (" + ((double)deltaEdgeNotMETISRandLocalSearch * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeMETISSimAnnealing = cloneMETISSimAnnealing.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeMETISSimAnnealing < minDeltaEdge)
+						minDeltaEdge = deltaEdgeMETISSimAnnealing;
+					System.out.println("\t\tDelta using METIS, simulated annealing: " + deltaEdgeMETISSimAnnealing + " (" + ((double)deltaEdgeMETISSimAnnealing * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeNotMETISSimAnnealing = cloneNotMETISSimAnnealing.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeNotMETISSimAnnealing < minDeltaEdge)
+						minDeltaEdge = deltaEdgeNotMETISSimAnnealing;
+					System.out.println("\t\tDelta not using METIS, simulated annealing: " + deltaEdgeNotMETISSimAnnealing + " (" + ((double)deltaEdgeNotMETISSimAnnealing * 100d / (double)origEdgeCount) + "%)");
+					
+					if (deltaEdgeMETISNoOpt == minDeltaEdge)
+						timesMETISNoOptWasBest.get(2).put(k, timesMETISNoOptWasBest.get(2).get(k) + 1);
+					if (deltaEdgeNotMETISNoOpt == minDeltaEdge)
+						timesNotMETISNoOptWasBest.get(2).put(k, timesNotMETISNoOptWasBest.get(2).get(k) + 1);
+					if (deltaEdgeMETISRandLocalSearch == minDeltaEdge)
+						timesMETISRandLocalSearchWasBest.get(2).put(k, timesMETISRandLocalSearchWasBest.get(2).get(k) + 1);
+					if (deltaEdgeNotMETISRandLocalSearch == minDeltaEdge)
+						timesNotMETISRandLocalSearchWasBest.get(2).put(k, timesNotMETISRandLocalSearchWasBest.get(2).get(k) + 1);
+					if (deltaEdgeMETISSimAnnealing == minDeltaEdge)
+						timesMETISSimAnnealingWasBest.get(2).put(k, timesMETISSimAnnealingWasBest.get(2).get(k) + 1);
+					if (deltaEdgeNotMETISSimAnnealing == minDeltaEdge)
+						timesNotMETISSimAnnealingWasBest.get(2).put(k, timesNotMETISSimAnnealingWasBest.get(2).get(k) + 1);
+					
+					if (deltaEdgeMETISNoOpt < deltaEdgeMETISRandLocalSearch)
+						timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(2).put(k, timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(2).get(k) + 1);
+					if (deltaEdgeNotMETISNoOpt < deltaEdgeNotMETISRandLocalSearch)
+						timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(2).put(k, timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(2).get(k) + 1);
+					if (deltaEdgeMETISNoOpt < deltaEdgeMETISSimAnnealing)
+						timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(2).put(k, timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(2).get(k) + 1);
+					if (deltaEdgeNotMETISNoOpt < deltaEdgeNotMETISSimAnnealing)
+						timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(2).put(k, timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(2).get(k) + 1);
+					if (deltaEdgeMETISRandLocalSearch < deltaEdgeMETISSimAnnealing)
+						timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(2).put(k, timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(2).get(k) + 1);
+					if (deltaEdgeNotMETISRandLocalSearch < deltaEdgeNotMETISSimAnnealing)
+						timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(2).put(k, timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(2).get(k) + 1);
+					
 				}
 				
 				System.out.println("");
@@ -1172,26 +1375,232 @@ public class IncrementalKMatchSequenceAnonymizer extends KMatchAnonymizer {
 				// Apply the method with k \in ks
 				for (int k : ks) {
 					
-					System.out.println("k = " + k);
+					System.out.println("\tk = " + k);
 					
-					UndirectedGraph<String, DefaultEdge> cloneMETIS = GraphUtil.cloneGraph(graph);
-					UndirectedGraph<String, DefaultEdge> cloneNotMETIS = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneMETISNoOpt = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETISNoOpt = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneMETISRandLocalSearch = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETISRandLocalSearch = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneMETISSimAnnealing = GraphUtil.cloneGraph(graph);
+					UndirectedGraph<String, DefaultEdge> cloneNotMETISSimAnnealing = GraphUtil.cloneGraph(graph);
 					
-					anonymizersUsingMETIS.get(k).anonymizeGraph(cloneMETIS, false, "TesterCopying");
-					anonymizersNotUsingMETIS.get(k).anonymizeGraph(cloneNotMETIS, false, "TesterCopying");
+					anonymizersUsingMETISNoOptimization.get(k).anonymizeGraph(cloneMETISNoOpt, false, "TesterMETISNoOpt");
+					anonymizersNotUsingMETISNoOptimization.get(k).anonymizeGraph(cloneNotMETISNoOpt, false, "TesterNoMETISNoOpt");
+					anonymizersUsingMETISRandLocalSearch.get(k).anonymizeGraph(cloneMETISRandLocalSearch, false, "TesterMETISRandLocalSearch");
+					anonymizersNotUsingMETISRandLocalSearch.get(k).anonymizeGraph(cloneNotMETISRandLocalSearch, false, "TesterNoMETISRandLocalSearch");
+					anonymizersUsingMETISSimAnnealing.get(k).anonymizeGraph(cloneMETISSimAnnealing, false, "TesterMETISSimAnnealing");
+					anonymizersNotUsingMETISSimAnnealing.get(k).anonymizeGraph(cloneNotMETISSimAnnealing, false, "TesterNoMETISSimAnnealing");
 					
 					// Report effect of anonymization on the graph
 					System.out.println("\t\tOriginal vertex count: " + origVertexCount);
-					System.out.println("\t\tFinal vertex count using METIS: " + cloneMETIS.vertexSet().size());
-					System.out.println("\t\tFinal vertex count not using METIS: " + cloneNotMETIS.vertexSet().size());
-					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
-					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneNotMETIS.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
+					System.out.println("\t\tFinal vertex count using METIS, no optimization: " + cloneMETISNoOpt.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS, no optimization: " + cloneNotMETISNoOpt.vertexSet().size());
+					System.out.println("\t\tFinal vertex count using METIS, randomized local search: " + cloneMETISRandLocalSearch.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS, randomized local search: " + cloneNotMETISRandLocalSearch.vertexSet().size());
+					System.out.println("\t\tFinal vertex count using METIS, simulated annealing: " + cloneMETISSimAnnealing.vertexSet().size());
+					System.out.println("\t\tFinal vertex count not using METIS, simulated annealing: " + cloneNotMETISSimAnnealing.vertexSet().size());
 					System.out.println("\t\tOriginal edge count: " + origEdgeCount);
-					System.out.println("\t\tFinal edge count using METIS: " + cloneMETIS.edgeSet().size());
-					System.out.println("\t\tFinal edge count not using METIS: " + cloneNotMETIS.edgeSet().size());
-					System.out.println("\t\tDelta using METIS: " + (cloneMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
-					System.out.println("\t\tDelta not using METIS: " + (cloneNotMETIS.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneNotMETIS.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
+					System.out.println("\t\tFinal edge count using METIS, no optimization: " + cloneMETISNoOpt.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS, no optimization: " + cloneNotMETISNoOpt.edgeSet().size());
+					System.out.println("\t\tFinal edge count using METIS, randomized local search: " + cloneMETISRandLocalSearch.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS, randomized local search: " + cloneNotMETISRandLocalSearch.edgeSet().size());
+					System.out.println("\t\tFinal edge count using METIS, simulated annealing: " + cloneMETISSimAnnealing.edgeSet().size());
+					System.out.println("\t\tFinal edge count not using METIS, simulated annealing: " + cloneNotMETISSimAnnealing.edgeSet().size());
+					int deltaEdgeMETISNoOpt = cloneMETISNoOpt.edgeSet().size() - origEdgeCount;
+					int minDeltaEdge = deltaEdgeMETISNoOpt;
+					System.out.println("\t\tDelta using METIS, no optimization: " + deltaEdgeMETISNoOpt + " (" + ((double)deltaEdgeMETISNoOpt * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeNotMETISNoOpt = cloneNotMETISNoOpt.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeNotMETISNoOpt < minDeltaEdge)
+						minDeltaEdge = deltaEdgeNotMETISNoOpt;
+					System.out.println("\t\tDelta not using METIS, no optimization: " + deltaEdgeNotMETISNoOpt + " (" + ((double)deltaEdgeNotMETISNoOpt * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeMETISRandLocalSearch = cloneMETISRandLocalSearch.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeMETISRandLocalSearch < minDeltaEdge)
+						minDeltaEdge = deltaEdgeMETISRandLocalSearch;
+					System.out.println("\t\tDelta using METIS, randomized local search: " + deltaEdgeMETISRandLocalSearch + " (" + ((double)deltaEdgeMETISRandLocalSearch * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeNotMETISRandLocalSearch = cloneNotMETISRandLocalSearch.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeNotMETISRandLocalSearch < minDeltaEdge)
+						minDeltaEdge = deltaEdgeNotMETISRandLocalSearch;
+					System.out.println("\t\tDelta not using METIS, randomized local search: " + deltaEdgeNotMETISRandLocalSearch + " (" + ((double)deltaEdgeNotMETISRandLocalSearch * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeMETISSimAnnealing = cloneMETISSimAnnealing.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeMETISSimAnnealing < minDeltaEdge)
+						minDeltaEdge = deltaEdgeMETISSimAnnealing;
+					System.out.println("\t\tDelta using METIS, simulated annealing: " + deltaEdgeMETISSimAnnealing + " (" + ((double)deltaEdgeMETISSimAnnealing * 100d / (double)origEdgeCount) + "%)");
+					int deltaEdgeNotMETISSimAnnealing = cloneNotMETISSimAnnealing.edgeSet().size() - origEdgeCount;
+					if (deltaEdgeNotMETISSimAnnealing < minDeltaEdge)
+						minDeltaEdge = deltaEdgeNotMETISSimAnnealing;
+					System.out.println("\t\tDelta not using METIS, simulated annealing: " + deltaEdgeNotMETISSimAnnealing + " (" + ((double)deltaEdgeNotMETISSimAnnealing * 100d / (double)origEdgeCount) + "%)");
+					
+					if (deltaEdgeMETISNoOpt == minDeltaEdge)
+						timesMETISNoOptWasBest.get(3).put(k, timesMETISNoOptWasBest.get(3).get(k) + 1);
+					if (deltaEdgeNotMETISNoOpt == minDeltaEdge)
+						timesNotMETISNoOptWasBest.get(3).put(k, timesNotMETISNoOptWasBest.get(3).get(k) + 1);
+					if (deltaEdgeMETISRandLocalSearch == minDeltaEdge)
+						timesMETISRandLocalSearchWasBest.get(3).put(k, timesMETISRandLocalSearchWasBest.get(3).get(k) + 1);
+					if (deltaEdgeNotMETISRandLocalSearch == minDeltaEdge)
+						timesNotMETISRandLocalSearchWasBest.get(3).put(k, timesNotMETISRandLocalSearchWasBest.get(3).get(k) + 1);
+					if (deltaEdgeMETISSimAnnealing == minDeltaEdge)
+						timesMETISSimAnnealingWasBest.get(3).put(k, timesMETISSimAnnealingWasBest.get(3).get(k) + 1);
+					if (deltaEdgeNotMETISSimAnnealing == minDeltaEdge)
+						timesNotMETISSimAnnealingWasBest.get(3).put(k, timesNotMETISSimAnnealingWasBest.get(3).get(k) + 1);
+					
+					if (deltaEdgeMETISNoOpt < deltaEdgeMETISRandLocalSearch)
+						timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(3).put(k, timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(3).get(k) + 1);
+					if (deltaEdgeNotMETISNoOpt < deltaEdgeNotMETISRandLocalSearch)
+						timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(3).put(k, timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(3).get(k) + 1);
+					if (deltaEdgeMETISNoOpt < deltaEdgeMETISSimAnnealing)
+						timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(3).put(k, timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(3).get(k) + 1);
+					if (deltaEdgeNotMETISNoOpt < deltaEdgeNotMETISSimAnnealing)
+						timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(3).put(k, timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(3).get(k) + 1);
+					if (deltaEdgeMETISRandLocalSearch < deltaEdgeMETISSimAnnealing)
+						timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(3).put(k, timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(3).get(k) + 1);
+					if (deltaEdgeNotMETISRandLocalSearch < deltaEdgeNotMETISSimAnnealing)
+						timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(3).put(k, timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(3).get(k) + 1);
+					
 				}
+				
+				System.out.println("");
+				System.out.println("Summary so far:");
+				
+				System.out.println("");
+				System.out.println("\tNumber of times using METIS and applying no optimization was best:");
+				System.out.println("\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesMETISNoOptWasBest.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesMETISNoOptWasBest.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesMETISNoOptWasBest.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesMETISNoOptWasBest.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesMETISNoOptWasBest.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesMETISNoOptWasBest.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				
+				System.out.println("");
+				System.out.println("\tNumber of times not using METIS and applying no optimization was best:");
+				System.out.println("\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesNotMETISNoOptWasBest.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNotMETISNoOptWasBest.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesNotMETISNoOptWasBest.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNotMETISNoOptWasBest.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesNotMETISNoOptWasBest.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNotMETISNoOptWasBest.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+								
+				System.out.println("");
+				System.out.println("\tNumber of times using METIS and applying randomized local search was best:");
+				System.out.println("\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesMETISRandLocalSearchWasBest.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesMETISRandLocalSearchWasBest.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");				
+				System.out.println("\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesMETISRandLocalSearchWasBest.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesMETISRandLocalSearchWasBest.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");				
+				System.out.println("\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesMETISRandLocalSearchWasBest.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesMETISRandLocalSearchWasBest.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				
+				System.out.println("");
+				System.out.println("\tNumber of times not using METIS and applying randomized local search was best:");
+				System.out.println("\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesNotMETISRandLocalSearchWasBest.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNotMETISRandLocalSearchWasBest.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesNotMETISRandLocalSearchWasBest.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNotMETISRandLocalSearchWasBest.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");				
+				System.out.println("\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesNotMETISRandLocalSearchWasBest.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNotMETISRandLocalSearchWasBest.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				
+				System.out.println("");
+				System.out.println("\tNumber of times using METIS and applying simulated annealing was best:");
+				System.out.println("\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesMETISSimAnnealingWasBest.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesMETISSimAnnealingWasBest.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesMETISSimAnnealingWasBest.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesMETISSimAnnealingWasBest.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesMETISSimAnnealingWasBest.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesMETISSimAnnealingWasBest.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				
+				System.out.println("");
+				System.out.println("\tNumber of times not using METIS and applying simulated annealing was best:");
+				System.out.println("\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesNotMETISSimAnnealingWasBest.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNotMETISSimAnnealingWasBest.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesNotMETISSimAnnealingWasBest.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNotMETISSimAnnealingWasBest.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\tk= " + k + ": " + timesNotMETISSimAnnealingWasBest.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNotMETISSimAnnealingWasBest.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+								
+				System.out.println("");
+				System.out.println("\tNumber of times using no optimization was strictly better than randomized local search:");
+				System.out.println("\t\tUsing METIS:");
+				System.out.println("\t\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanRandLocalSearchUsingMETIS.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tNot using METIS:");
+				System.out.println("\t\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanRandLocalSearchNotUsingMETIS.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				
+				System.out.println("");
+				System.out.println("\tNumber of times using no optimization was strictly better than simulated annealing:");
+				System.out.println("\t\tUsing METIS:");
+				System.out.println("\t\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanSimAnnealingUsingMETIS.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");				
+				System.out.println("\t\tNot using METIS:");
+				System.out.println("\t\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesNoOptStriclyBetterThanSimAnnealingNotUsingMETIS.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				
+				System.out.println("");
+				System.out.println("\tNumber of times using randomized local search was strictly better than simulated annealing:");
+				System.out.println("\t\tUsing METIS:");
+				System.out.println("\t\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesRandLocalSearchStriclyBetterThanSimAnnealingUsingMETIS.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tNot using METIS:");
+				System.out.println("\t\tFirst snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(1).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(1).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tSecond snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(2).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(2).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
+				System.out.println("\t\tThird snapshot:");
+				for (int k : ks)
+					System.out.println("\t\t\tk= " + k + ": " + timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(3).get(k) + "/" + (ks.length * (iter + 1)) + " (" + (double)(100 * timesRandLocalSearchStriclyBetterThanSimAnnealingNotUsingMETIS.get(3).get(k)) / (double)(ks.length * (iter + 1)) + "%)");
 				
 				System.out.println("");
 			}
