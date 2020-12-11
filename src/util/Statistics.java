@@ -512,7 +512,7 @@ public class Statistics {
 		
 		double deltaGlobalCC = GraphParameterBasedUtilitiesJGraphT.deltaGlobalClusteringCoefficient(originalGraph, perturbedGraph);
 		double deltaAvgdLocalCC = GraphParameterBasedUtilitiesJGraphT.deltaAvgLocalClusteringCoefficient(originalGraph, perturbedGraph);
-		double cosDD = GraphParameterBasedUtilitiesJGraphT.cosineSortedDegreeDistributions(originalGraph, perturbedGraph);
+		double cosDD = GraphParameterBasedUtilitiesJGraphT.cosineUnlabeledDegreeSequences(originalGraph, perturbedGraph);
 		
 		String lineToAppend = index + "\t" + successProb + "\t" + addedEdges + "\t" + removedEdges + "\t" + deltaDiameter + "\t" + deltaEffDiameter + "\t" + deltaRadius + "\t" + deltaGlobalCC + "\t" + deltaAvgdLocalCC + "\t" + cosDD + NEW_LINE;
 		out.append(lineToAppend);
@@ -536,7 +536,7 @@ public class Statistics {
 		
 		double deltaGlobalCC = GraphParameterBasedUtilitiesJGraphT.deltaGlobalClusteringCoefficient(originalGraph, perturbedGraph);
 		double deltaAvgdLocalCC = GraphParameterBasedUtilitiesJGraphT.deltaAvgLocalClusteringCoefficient(originalGraph, perturbedGraph);
-		double cosDD = GraphParameterBasedUtilitiesJGraphT.cosineSortedDegreeDistributions(originalGraph, perturbedGraph);
+		double cosDD = GraphParameterBasedUtilitiesJGraphT.cosineUnlabeledDegreeSequences(originalGraph, perturbedGraph);
 		
 		String lineToAppend = index + "\t" + addedEdges + "\t" + removedEdges + "\t" + deltaDiameter + "\t" + deltaEffDiameter + "\t" + deltaRadius + "\t" + deltaGlobalCC + "\t" + deltaAvgdLocalCC + "\t" + cosDD + NEW_LINE;
 		out.append(lineToAppend);

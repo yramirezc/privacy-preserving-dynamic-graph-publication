@@ -4,21 +4,14 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import org.jgrapht.UndirectedGraph;
-import org.jgrapht.alg.ConnectivityInspector;
 import org.jgrapht.graph.DefaultEdge;
-import real.FacebookGraph;
-import real.PanzarasaGraph;
-import real.URVMailGraph;
-import util.BarabasiAlbertGraphGenerator;
 import util.GraphUtil;
-import util.WattsStrogatzGraphGenerator;
 import util.WrapperMETIS;
 
 /***
@@ -32,7 +25,6 @@ public class KMatchAnonymizerUsingMETIS extends KMatchAnonymizer {
 	
 	protected String metisExecName;
 	protected String metisWorkDirName;
-	protected static int metisFailureCount = 0;
 	
 	public KMatchAnonymizerUsingMETIS(String eName, String wName) {
 		globalVAT = null;
@@ -88,9 +80,7 @@ public class KMatchAnonymizerUsingMETIS extends KMatchAnonymizer {
 			
 		} catch (IOException | InterruptedException | RuntimeException e) {
 			
-			metisFailureCount++;   // Just update, initialization and use up to the caller
-			
-			// Since some problem occurred in running METIS or handling its outputs, 
+			// If a problem occurrs in running METIS or handling its outputs,
 			// a naive partition is made by decrementally sorting vertices by degree 
 			// and assigning each vertex to a partition using round-robin 
 			List<Set<String>> vertsXPart = new ArrayList<>();
@@ -303,101 +293,6 @@ public class KMatchAnonymizerUsingMETIS extends KMatchAnonymizer {
 		}
 		
 		return auxVAT;
-	}
-	
-	/***
-	 * 
-	 * The purpose of this main method is to serve as support for debugging and testing
-	 * 
-	 */
-	
-	public static void main(String [] args) {
-		
-		if (args.length == 2) {
-			
-			metisFailureCount = 0;
-			
-			for (int iter = 0; iter < 1000; iter++) {
-				
-				System.out.println("Iteration # " + iter);
-				
-				UndirectedGraph<String, DefaultEdge> graph = null; 
-				if (args.length == 1 && args[0].equals("-facebook"))
-					graph = new FacebookGraph(DefaultEdge.class);
-				else if (args.length == 1 && args[0].equals("-panzarasa"))
-					graph = new PanzarasaGraph(DefaultEdge.class);
-				else if (args.length == 1 && args[0].equals("-urv"))			
-					graph = new URVMailGraph(DefaultEdge.class);
-				else if ((new SecureRandom()).nextBoolean())
-					graph = BarabasiAlbertGraphGenerator.newGraph(200, 0, 50, 5, 3);
-				else
-					graph = WattsStrogatzGraphGenerator.newGraph(200, 0, 30, 0.75);
-				
-				ConnectivityInspector<String, DefaultEdge> connectivity = new ConnectivityInspector<>(graph);
-				List<Set<String>> connComp = connectivity.connectedSets();
-				
-				Set<String> vertsMainComponent = null;
-				int maximum = 0;
-				for (Set<String> comp : connComp) {
-					if (comp.size() > maximum) {
-						maximum = comp.size();
-						vertsMainComponent = new HashSet<String>(comp);
-					}
-				}
-				
-				if (vertsMainComponent.size() < graph.vertexSet().size())
-					graph = GraphUtil.inducedSubgraph(graph, vertsMainComponent);
-				
-				connectivity = new ConnectivityInspector<>(graph);
-				if (!connectivity.isGraphConnected()) 
-					throw new RuntimeException();
-				
-				int origEdgeCount = graph.edgeSet().size(), origVertexCount = graph.vertexSet().size();
-			
-				// Apply the method with k \in {2,...,10}
-				for (int k = 2; k <= 10; k++) {
-					
-					System.out.println("k = " + k);
-					
-					System.out.println("\tCopying crossing edges:");
-					
-					UndirectedGraph<String, DefaultEdge> cloneCopyingVersion = GraphUtil.cloneGraph(graph);
-					KMatchAnonymizerUsingMETIS anonymizer = new KMatchAnonymizerUsingMETIS(args[0], args[1]);
-					anonymizer.anonymizeGraph(cloneCopyingVersion, k, false, "TesterCopying");
-					
-					// Report effect of anonymization on the graph
-					System.out.println("\t\tOriginal vertex count: " + origVertexCount);
-					System.out.println("\t\tFinal vertex count: " + cloneCopyingVersion.vertexSet().size());
-					System.out.println("\t\tDelta: " + (cloneCopyingVersion.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneCopyingVersion.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
-					System.out.println("\t\tOriginal edge count: " + origEdgeCount);
-					System.out.println("\t\tFinal edge count: " + cloneCopyingVersion.edgeSet().size());
-					System.out.println("\t\tDelta: " + (cloneCopyingVersion.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneCopyingVersion.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
-					
-					System.out.println("\tRandomizing crossing edges:");
-					
-					UndirectedGraph<String, DefaultEdge> cloneRandomizedVersion = GraphUtil.cloneGraph(graph);
-					anonymizer.anonymizeGraph(cloneRandomizedVersion, k, true, "TesterRandomized");
-					
-					// Report effect of anonymization on the graph
-					System.out.println("\t\tOriginal vertex count: " + origVertexCount);
-					System.out.println("\t\tFinal vertex count: " + cloneRandomizedVersion.vertexSet().size());
-					System.out.println("\t\tDelta: " + (cloneRandomizedVersion.vertexSet().size() - origVertexCount) + " (" + ((double)(cloneRandomizedVersion.vertexSet().size() - origVertexCount) * 100d / (double)origVertexCount) + "%)");
-					System.out.println("\t\tOriginal edge count: " + origEdgeCount);
-					System.out.println("\t\tFinal edge count: " + cloneRandomizedVersion.edgeSet().size());
-					System.out.println("\t\tDelta: " + (cloneRandomizedVersion.edgeSet().size() - origEdgeCount) + " (" + ((double)(cloneRandomizedVersion.edgeSet().size() - origEdgeCount) * 100d / (double)origEdgeCount) + "%)");
-					connectivity = new ConnectivityInspector<>(cloneRandomizedVersion);
-					if (connectivity.isGraphConnected())
-						System.out.println("\t\tAnonymized graph is connected: YES");
-					else
-						System.out.println("\t\tAnonymized graph is connected: NO");
-				}
-				
-				System.out.println("");
-			}
-			
-			System.out.println("METIS failed " + metisFailureCount + " times");
-			
-		}	
 	}
 	
 }
